@@ -137,6 +137,42 @@
     "</button>";
   }
 
+  /* Daftar rombel pada tingkat terpilih + tombol ubah / hapus. */
+  function rombelList() {
+    var cls = classesFor(state.tingkat);
+    var editable = API.isAdmin();
+    var items = cls.map(function (c) {
+      var n = studentsOf(state.tingkat).filter(function (s) { return s.kelas === c.nama; }).length;
+      return '<div class="rombel-item' + (state.kelas === c.nama ? " is-active" : "") + '">' +
+        '<button type="button" class="rombel-name" data-kelas="' + U.escape(c.nama) + '" title="Tampilkan hanya rombel ini">' +
+          '<strong>' + U.escape(c.nama) + "</strong><span>" + n + " siswa" + (c.wali_kelas ? " · " + U.escape(c.wali_kelas) : "") + "</span>" +
+        "</button>" +
+        (editable
+          ? '<span class="rombel-actions">' +
+              '<button type="button" class="icon-btn" data-class-act="edit-class" data-id="' + U.escape(c.id) + '" title="Ubah rombel">' + U.icon("edit", 15) + "</button>" +
+              '<button type="button" class="icon-btn icon-danger" data-class-act="delete-class" data-id="' + U.escape(c.id) + '" title="Hapus rombel">' + U.icon("trash", 15) + "</button>" +
+            "</span>"
+          : "") +
+      "</div>";
+    }).join("");
+    return '<span class="rombel-label">Rombel</span>' +
+      (items || '<span class="rombel-empty">Belum ada rombel pada tingkat ini.</span>') +
+      (editable
+        ? '<button type="button" class="btn btn-soft btn-sm rombel-add" id="lvl-add-class-2">' + U.icon("plus", 15) + "<span>Tambah Rombel</span></button>"
+        : "");
+  }
+
+  function paintRombel() {
+    if (!state.container) return;
+    var box = U.$("#lvl-class-list", state.container);
+    if (box) box.innerHTML = rombelList();
+    var addBtn = U.$("#lvl-add-class-2", state.container);
+    if (addBtn && !addBtn.dataset.bound) {
+      addBtn.dataset.bound = "1";
+      addBtn.addEventListener("click", function () { openClassForm(null); });
+    }
+  }
+
   function rombelSelect() {
     var cls = classesFor(state.tingkat);
     return '<select id="lvl-kelas" title="Filter rombel">' +
@@ -201,10 +237,6 @@
     return '<div class="page-head">' +
         '<div><h1>Kelas</h1><p>Pilih tingkat untuk melihat siswa serta kehadiran semester berjalan.</p></div>' +
         '<div class="page-actions">' +
-          (API.isAdmin()
-            ? '<button type="button" class="btn btn-ghost" id="lvl-tahun">' + U.icon("calendar", 17) + "<span>Tahun &amp; Semester</span></button>" +
-              '<button type="button" class="btn btn-ghost" id="lvl-lulus">' + U.icon("clipboard", 17) + "<span>Kelulusan</span></button>"
-            : "") +
           '<button type="button" class="btn btn-secondary" id="lvl-excel">' + U.icon("download", 17) + "<span>Excel</span></button>" +
           (API.isAdmin() ? '<button type="button" class="btn btn-primary" id="lvl-add">' + U.icon("plus", 17) + "<span>Tambah Siswa</span></button>" : "") +
         "</div>" +
@@ -221,8 +253,7 @@
           "</select>" +
         "</div>" +
         (API.isAdmin()
-          ? '<button type="button" class="btn btn-soft btn-sm" id="lvl-promote">' + U.icon("arrowRight", 16) + "<span>Kenaikan Kelas</span></button>" +
-            '<button type="button" class="btn btn-ghost btn-sm" id="lvl-add-class">' + U.icon("plus", 16) + "<span>Rombel</span></button>"
+          ? '<button type="button" class="btn btn-soft btn-sm" id="lvl-promote">' + U.icon("arrowRight", 16) + "<span>Kenaikan Kelas</span></button>"
           : "") +
         '<span class="lvl-sem">' + U.icon("calendar", 15) + "<span>" + U.escape(semLabel) + "</span></span>" +
       "</div>" +
@@ -237,6 +268,7 @@
             '<input type="search" id="lvl-search" value="' + U.escape(state.search) + '" placeholder="Cari nama atau NIS…" autocomplete="off">' +
           "</div>" +
         "</div>" +
+        '<div class="rombel-bar" id="lvl-class-list">' + rombelList() + "</div>" +
         '<div class="student-list-head">' +
           '<span class="table-count" id="lvl-count">' + list.length + " siswa</span>" +
           '<span class="lvl-head-tools">' + rombelSelect() +
@@ -301,6 +333,7 @@
       if (token !== state.token) return;
       state.container.innerHTML = renderShell();
       bind(state.container);
+      paintRombel();
     } catch (err) {
       if (token !== state.token) return;
       state.loading = false;
@@ -423,6 +456,115 @@
           }
         }
       ]
+    });
+  }
+
+  /* Hapus rombel: siswa dipindah ke rombel lain atau dikeluarkan dari tingkat
+     tahun ajaran ini (data siswa & absensi tidak dihapus). */
+  function deleteClass(c) {
+    var members = studentsOf(state.tingkat).filter(function (s) { return s.kelas === c.nama; });
+    var others = classesFor(state.tingkat).filter(function (x) { return x.id !== c.id; });
+    var targetId = others.length ? others[0].id : "none";
+
+    var body = '<div class="form-stack">' +
+      (members.length
+        ? '<div class="notice notice-warning">' + U.icon("alert", 18) + "<span>Rombel <strong>" + U.escape(c.nama) + "</strong> berisi <strong>" +
+            members.length + " siswa</strong>. Data siswa dan riwayat absensi tidak dihapus.</span></div>" +
+          '<div class="field"><label for="dc-target">Pindahkan siswa ke</label><select id="dc-target">' +
+            others.map(function (x) { return '<option value="' + U.escape(x.id) + '">' + U.escape(x.nama) + "</option>"; }).join("") +
+            '<option value="none">— Keluarkan dari tingkat ini (tanpa rombel) —</option>' +
+          "</select></div>"
+        : '<p class="form-hint">Rombel ini tidak berisi siswa.</p>') +
+      '<p class="form-hint">Setelah dihapus, rombel dapat ditambahkan kembali kapan saja.</p>' +
+      "</div>";
+
+    U.modal({
+      title: "Hapus Rombel " + c.nama,
+      subtitle: state.year ? U.tahunAjaranLabel(state.year) : "",
+      size: "sm",
+      body: body,
+      actions: [
+        { label: "Batal", class: "btn-secondary" },
+        {
+          label: "Hapus Rombel",
+          class: "btn-danger",
+          icon: "trash",
+          close: false,
+          onClick: async function (close, overlay, bodyEl) {
+            var sel = U.$("#dc-target", bodyEl);
+            var picked = sel ? sel.value : "none";
+            var btn = bodyEl.parentNode.querySelector(".modal-foot .btn-danger");
+            if (btn) U.buttonLoading(btn, true);
+            try {
+              var target = others.filter(function (x) { return x.id === picked; })[0] || null;
+              for (var i = 0; i < members.length; i++) {
+                var s = members[i];
+                var status = (s._history && s._history.status) || "aktif";
+                if (target) {
+                  await API.saveStudentHistory({
+                    student_id: s.id,
+                    academic_year_id: state.yearId,
+                    tingkat: state.tingkat,
+                    class_group_id: target.id,
+                    kelas: target.nama,
+                    status: status
+                  });
+                  await API.updateStudent(s.id, { kelas: target.nama, tingkat: state.tingkat });
+                } else {
+                  await API.saveStudentHistory({
+                    student_id: s.id,
+                    academic_year_id: state.yearId,
+                    tingkat: state.tingkat,
+                    class_group_id: null,
+                    kelas: "",
+                    status: status
+                  });
+                }
+              }
+              await API.deleteClassGroup(c.id);
+              if (state.kelas === c.nama) state.kelas = "";
+              U.toast("Rombel " + c.nama + " dihapus." + (target && members.length ? " " + members.length + " siswa dipindah ke " + target.nama + "." : ""), "success", 5000);
+              close();
+              await App.refreshStudentsAll();
+              await load();
+            } catch (err) {
+              U.toast(API.errorMessage(err), "error");
+            } finally {
+              if (btn) U.buttonLoading(btn, false);
+            }
+          }
+        }
+      ]
+    });
+  }
+
+  function chooseRombelTarget(c, members, others) {
+    return new Promise(function (resolve) {
+      var body = '<div class="form-stack">' +
+        '<div class="notice notice-info">' + U.icon("info", 18) + "<span><strong>" + members.length + " siswa</strong> dari rombel " +
+          U.escape(c.nama) + " perlu dipindahkan sebelum rombel dihapus.</span></div>" +
+        '<div class="field"><label for="dc-target2">Pindahkan ke</label><select id="dc-target2">' +
+          others.map(function (x) { return '<option value="' + U.escape(x.id) + '">' + U.escape(x.nama) + "</option>"; }).join("") +
+          '<option value="none">— Keluarkan dari tingkat ini —</option>' +
+        "</select></div></div>";
+      U.modal({
+        title: "Pindahkan Siswa",
+        subtitle: "Rombel " + c.nama,
+        size: "sm",
+        body: body,
+        actions: [
+          { label: "Batal", class: "btn-secondary", onClick: function () { resolve(null); } },
+          {
+            label: "Hapus Rombel",
+            class: "btn-danger",
+            icon: "trash",
+            onClick: function (close, o, b) {
+              resolve(U.$("#dc-target2", b).value);
+            }
+          }
+        ],
+        onClose: function () { resolve(null); }
+      });
     });
   }
 
@@ -651,6 +793,16 @@
       state.kelas = "";
       container.innerHTML = renderShell();
       bind(container);
+      paintRombel();
+    });
+
+    U.on(container, "click", "[data-kelas]", function (e, btn) {
+      var nama = btn.dataset.kelas || "";
+      state.kelas = state.kelas === nama ? "" : nama;
+      paintRows();
+      paintRombel();
+      var sel = U.$("#lvl-kelas", container);
+      if (sel) sel.value = state.kelas;
     });
 
     var kelasSel = U.$("#lvl-kelas", container);
@@ -658,21 +810,23 @@
       kelasSel.addEventListener("change", function (e) {
         state.kelas = e.target.value || "";
         paintRows();
+        paintRombel();
       });
     }
 
     var addBtn = U.$("#lvl-add", container);
     if (addBtn) addBtn.addEventListener("click", openAddStudent);
-    var addClass = U.$("#lvl-add-class", container);
-    if (addClass) addClass.addEventListener("click", function () { openClassForm(null); });
     var promote = U.$("#lvl-promote", container);
     if (promote) promote.addEventListener("click", openPromote);
     var excel = U.$("#lvl-excel", container);
     if (excel) excel.addEventListener("click", exportExcel);
-    var tahunBtn = U.$("#lvl-tahun", container);
-    if (tahunBtn) tahunBtn.addEventListener("click", function () { App.navigate("tahun"); });
-    var lulusBtn = U.$("#lvl-lulus", container);
-    if (lulusBtn) lulusBtn.addEventListener("click", function () { App.navigate("lulus"); });
+    U.on(U.$("#lvl-class-list", container), "click", "[data-class-act]", function (e, btn) {
+      var id = btn.dataset.id;
+      var cls = state.classes.filter(function (c) { return c.id === id; })[0];
+      if (!cls) return;
+      if (btn.dataset.classAct === "edit-class") openClassForm(cls);
+      else if (btn.dataset.classAct === "delete-class") deleteClass(cls);
+    });
 
     U.on(U.$("#lvl-tbody", container), "click", "[data-act]", function (e, btn) {
       var tr = btn.closest("tr[data-id]");

@@ -96,7 +96,10 @@ FITUR
 - Tahun ajaran & semester dapat dihapus (absensi lama tetap tersimpan).
   Bila fungsi hapus belum ada, jalankan
   supabase\update-hapus-tahun-semester.sql.
-- Menu navigasi: Dasbor, Absensi, Rekap Absensi, Kelas (tanpa A/B/C).
+- Menu navigasi: Dasbor, Absensi, Rekap Absensi, Kelas (tanpa A/B/C),
+  Tahun & Semester, Kelulusan, Laporan Kerja, Data Siswa, Akun, Pengaturan.
+- Rombel dapat ditambah, diubah, dan dihapus di halaman Kelas.
+  Saat rombel dihapus, siswanya dipindah ke rombel lain (data tetap aman).
 - Tampilan responsif untuk komputer, tablet, dan HP.
 - Data siswa: tambah, edit, import Excel, ekspor Excel.
 - Pengaturan identitas madrasah dan penandatangan laporan.

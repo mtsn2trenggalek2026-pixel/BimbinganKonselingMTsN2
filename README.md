@@ -369,10 +369,17 @@ Tidak ada akun bawaan di dalam kode.
   halaman login — sehingga tidak ada lagi teks yang tenggelam di latar putih.
 
 ### Kelas (menu *Kelas*)
-Menu navigasi hanya **Kelas** (tanpa daftar A/B/C dan tingkat).
-- Di halaman: 3 pilihan tingkat (VII / VIII / IX) + filter rombel berupa dropdown.
-- Menu **Tahun & Semester** dan **Kelulusan** tersedia sebagai tombol di halaman Kelas
-  (juga dapat dibuka lewat alamat `#/tahun` dan `#/lulus`).
+Navigasi: **Dasbor · Absensi · Rekap Absensi · Kelas · Tahun & Semester · Kelulusan
+· Laporan Kerja · Data Siswa · Akun Admin · Pengaturan**.
+- Menu **Kelas** tidak menampilkan daftar A/B/C maupun tingkat; pilihan tingkat
+  ada di dalam halaman (3 kartu VII / VIII / IX).
+- **Rombel bisa ditambah, diubah, dan dihapus** dari baris *Rombel* di halaman Kelas:
+  - **Tambah Rombel** → isi tingkat, nama (mis. VII-C), dan wali kelas;
+  - **Ubah** (ikon pensil) → ganti nama/tingkat/wali kelas;
+  - **Hapus** (ikon sampah) → siswa di rombel tersebut dipindahkan ke rombel lain
+    pilihan Anda (atau dilepas dari tingkat itu). Data siswa, absensi, dan laporan
+    tidak ikut terhapus.
+  - Klik nama rombel untuk memfilter tabel siswa.
 - Kartu ringkas jumlah siswa & rombel per tingkat.
 - Tabel siswa dengan kehadiran semester berjalan.
 - **Tambah Siswa**, **Tambah Rombel**, pindah rombel, ubah status.

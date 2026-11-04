@@ -11,17 +11,33 @@
     profile: null,
     settings: {},
     students: [],
+    academicYears: [],
+    semesters: [],
+    activeYear: null,
+    activeSemester: null,
     dbError: null,
     route: ""
   };
 
   var PAGES = {
     dashboard: { title: "Dasbor", render: function (c) { window.Pages.dashboard.render(c); } },
+    tahun: { title: "Tahun Ajaran & Semester", render: function (c) { window.Pages.years.render(c); } },
+    tingkat: { title: "Kelas VII · VIII · IX", render: function (c) { window.Pages.level.render(c); } },
+    lulus: { title: "Kelulusan & Lanjutan", render: function (c) { window.Pages.graduation.render(c); } },
     absensi: { title: "Absensi Kehadiran", render: function (c) { window.Pages.attendance.render(c); } },
     rekap: { title: "Rekap Absensi", render: function (c) { window.Pages.recap.render(c); } },
     laporan: { title: "Laporan Kerja", render: function (c) { window.Pages.reports.render(c); } },
     siswa: { title: "Data Siswa", render: function (c) { window.Pages.students.render(c); } },
+    akun: { title: "Akun Admin", render: function (c) { window.Pages.accounts.render(c); } },
     pengaturan: { title: "Pengaturan", render: function (c) { window.Pages.settings.render(c); } }
+  };
+
+  /* Menu yang hanya tampil untuk peran tertentu. */
+  var PAGE_ROLES = {
+    akun: ["superadmin"],
+    tahun: ["superadmin", "admin"],
+    tingkat: ["superadmin", "admin"],
+    lulus: ["superadmin", "admin"]
   };
 
   function $(sel) { return document.querySelector(sel); }
@@ -148,11 +164,79 @@
       state.students = [];
       state.dbError = API.errorMessage(err);
     }
+    await loadAcademic();
+  }
+
+  /* Tahun ajaran + semester berjalan (dipakai absensi, rekap, dan dasbor). */
+  async function loadAcademic() {
+    try {
+      var res = await Promise.all([API.getAcademicYears(false), API.getSemesters(false)]);
+      var years = res[0] || [];
+      var sems = res[1] || [];
+      state.academicYears = years;
+      state.semesters = sems;
+
+      var active = sems.filter(function (s) { return s.status === "aktif"; })[0];
+      if (!active) {
+        active = sems.filter(function (s) { return s.status !== "selesai"; })[0] || sems[0] || null;
+      }
+      state.activeSemester = active || null;
+      state.activeYear = active
+        ? years.filter(function (y) { return y.id === active.academic_year_id; })[0] || null
+        : years.filter(function (y) { return y.is_aktif !== false; })[0] || years[0] || null;
+
+      if (state.activeSemester) {
+        try { localStorage.setItem("bk.activeSemester", state.activeSemester.id); } catch (e) {}
+      }
+    } catch (err) {
+      state.academicYears = [];
+      state.semesters = [];
+      state.activeSemester = null;
+      state.activeYear = null;
+      var msg = API.errorMessage(err);
+      // Tabel belum ada (migrasi belum dijalankan) → jangan blokir aplikasi.
+      if (/academic_years|semesters|does not exist|PGRST205/i.test(msg)) {
+        state.academicError = "Tabel tahun ajaran belum tersedia. Jalankan migrasi database.";
+      }
+    }
+  }
+
+  function canSee(route) {
+    var allowed = PAGE_ROLES[route];
+    if (!allowed) return true;
+    return allowed.indexOf((state.user && state.user.role) || "guru_bk") !== -1;
+  }
+
+  /* Tampilkan / sembunyikan menu sesuai peran. */
+  function paintNav() {
+    U.$$("[data-role-menu]").forEach(function (el) {
+      var route = el.getAttribute("data-role-menu");
+      el.classList.toggle("hidden", !canSee(route));
+    });
+    var badge = $("#sidebar-role");
+    if (badge) {
+      badge.textContent = API.roleLabel(state.user && state.user.role);
+      badge.className = "badge " + (state.user && state.user.role === "superadmin"
+        ? "badge-super"
+        : state.user && state.user.role === "admin" ? "badge-admin" : "badge-neutral");
+    }
+    var ctx = $("#sidebar-context");
+    if (ctx) {
+      if (state.activeSemester && state.activeYear) {
+        ctx.innerHTML = "<strong>" + U.escape(U.tahunAjaranLabel(state.activeYear)) + "</strong>" +
+          "<span>" + U.escape(U.SEMESTER_LABEL[state.activeSemester.jenis] || "-") + " · " +
+          state.activeSemester.hari_efektif + " hari efektif</span>";
+        ctx.classList.remove("hidden");
+      } else {
+        ctx.classList.add("hidden");
+      }
+    }
   }
 
   function paintUser() {
     var email = (state.user && state.user.email) || "guru@bk.sch.id";
     var name = (state.profile && state.profile.full_name) || email.split("@")[0];
+    paintNav();
     var initials = U.initials(name);
     ["#sidebar-avatar", "#topbar-avatar"].forEach(function (sel) {
       var el = $(sel);
@@ -184,6 +268,10 @@
     if (state.dbError) { renderDbError(); return; }
     var key = currentRoute();
     if (!PAGES[key]) key = "dashboard";
+    if (!canSee(key) || !window.Pages[key]) {
+      U.toast("Halaman ini hanya untuk " + (key === "akun" ? "superadmin" : "admin") + ".", "warning");
+      key = "dashboard";
+    }
     state.route = key;
     var page = PAGES[key];
 
@@ -242,8 +330,20 @@
   /* ---------------- AKSI ---------------- */
   App.navigate = navigate;
   App.renderRoute = renderRoute;
+  App.refreshAcademic = async function () {
+    await loadAcademic();
+    paintNav();
+    return { year: state.activeYear, semester: state.activeSemester };
+  };
+  App.canSee = canSee;
+  App.canEdit = function () { return Boolean(API.isAdmin()); };
   App.refreshStudents = async function () {
     state.students = U.sortStudents((await API.getStudents(false)) || []);
+    return state.students;
+  };
+  /* Muat ulang semua siswa termasuk yang nonaktif (untuk halaman data siswa). */
+  App.refreshStudentsAll = async function () {
+    state.students = U.sortStudents((await API.getStudents(true)) || []);
     return state.students;
   };
   App.logout = async function () {

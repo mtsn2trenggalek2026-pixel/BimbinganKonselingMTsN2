@@ -463,6 +463,24 @@ on conflict (id) do nothing;
 
 
 -- ============================================================
+-- LANGKAH LANJUTAN: TAHUN AJARAN, SEMESTER, ROLE & AKUN
+-- ------------------------------------------------------------
+-- Setelah file ini, jalankan juga (sekali saja):
+--   supabase/migrations/20261105090000_akademik_roles.sql
+-- File tersebut menambahkan:
+--   - kolom profiles.role (superadmin / admin / guru_bk)
+--   - tabel academic_years, semesters, class_groups,
+--     student_history, graduations
+--   - kolom students.angkatan / tingkat / foto (maks. 100 KB)
+--   - bucket storage "siswa-foto" dengan batas 102400 byte
+--   - RPC admin_list_accounts, admin_create_account,
+--     admin_update_account, admin_delete_account
+--   - RPC save_academic_year, set_active_semester,
+--     finish_semester, promote_students,
+--     archive_old_academic_years, graduation_summary
+-- ============================================================
+
+-- ============================================================
 -- CATATAN: DATA SISWA TIDAK DISERTAKAN DI REPOSITORI PUBLIK
 -- ------------------------------------------------------------
 -- Demi melindungi data pribadi siswa, 284 baris data siswa

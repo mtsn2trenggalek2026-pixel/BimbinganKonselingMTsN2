@@ -3,7 +3,13 @@
 Aplikasi web Bimbingan dan Konseling untuk:
 
 - **Absensi kehadiran** siswa (Masuk / Tidak Masuk dengan keterangan **Alpa, Sakit, Izin**).
-- **Rekap absensi** per kelas dan periode.
+- **Rekap absensi** per kelas dan periode, dengan persentase terhadap **hari efektif semester**.
+- **Tahun ajaran & semester**: satu tahun ajaran = Semester Ganjil + Semester Genap, tiap semester punya jumlah hari masuk sendiri, dan dapat diselesaikan untuk lanjut ke semester berikutnya.
+- **Kelas VII, VIII, IX** per tahun ajaran dengan kenaikan kelas otomatis.
+- **Kelulusan kelas IX** beserta rekapitulasi sekolah lanjutan.
+- **Arsip 5 tahun**: data akademik tersimpan 5 tahun, data lama dinonaktifkan (bukan dihapus).
+- **Akun superadmin / admin / guru BK**: superadmin mengelola seluruh akun admin.
+- **Foto siswa** otomatis dikompres **maksimal 100 KB**.
 - **Laporan kerja** bulanan dengan ekspor **Word (.docx)** dan **PDF**.
 - **Data siswa** (tambah, edit, nonaktifkan, import Excel).
 - **Pengaturan** identitas madrasah dan penandatangan laporan.
@@ -66,6 +72,37 @@ File tersebut membuat:
 
 > File aman dijalankan ulang. Tabel yang sudah ada tidak dihapus dan data siswa
 > diperbarui berdasarkan kombinasi **nama + kelas**.
+
+### Langkah 2b — Jalankan migrasi akademik (wajib, sekali)
+Perbesar aplikasi (tahun ajaran, semester, tingkat, kelulusan, akun admin, foto
+100 KB) memakai **file migrasi baru**:
+
+1. Buka **SQL Editor → New query**.
+2. Copy seluruh isi **`supabase/migrations/20261105090000_akademik_roles.sql`**.
+3. Klik **Run**.
+
+File migrasi tersebut menambah:
+
+| Objek | Fungsi |
+|---|---|
+| `profiles.role` | `superadmin`, `admin`, `guru_bk` |
+| `academic_years` | Daftar tahun ajaran (mis. 2026/2027) + kolom `is_aktif` |
+| `semesters` | Semester **ganjil** & **genap**, tanggal, **jumlah hari efektif**, status `draft/aktif/selesai` |
+| `class_groups` | Rombel per tingkat (VII-A, VIII-B, IX-A, …) |
+| `student_history` | Kelas siswa per tahun ajaran (riwayat 5 tahun) |
+| `graduations` | Kelulusan kelas IX + sekolah lanjutan |
+| `students.angkatan/tingkat/foto_*` | Angkatan, tingkat, foto (≤ 100 KB) |
+| bucket `siswa-foto` | Storage publik dengan `file_size_limit = 102400`, hanya JPG/PNG/WEBP |
+| RPC admin | `admin_list_accounts`, `admin_create_account`, `admin_update_account`, `admin_delete_account` |
+| RPC akademik | `save_academic_year`, `set_active_semester`, `finish_semester`, `promote_students`, `archive_old_academic_years`, `graduation_summary` |
+
+> Jika integrasi GitHub Supabase aktif (bagian 4.4), file di
+> `supabase/migrations/` dijalankan otomatis saat push — langkah manual ini tidak
+> diperlukan.
+
+Setelah migrasi, akun pertama (atau akun yang sudah ada) otomatis menjadi
+**superadmin** agar dapat membuat akun lain. Menu **Akun Admin** hanya terlihat
+untuk superadmin.
 
 ### Langkah 3 — Ambil URL dan kunci
 Buka **Project Settings → API**:
@@ -280,6 +317,46 @@ Tidak ada akun bawaan di dalam kode.
 - Unduh template import dari tombol **Template**.
 - Ekspor data siswa ke Excel.
 
+### Tahun Ajaran & Semester (menu *Tahun & Semester*)
+- Satu tahun ajaran otomatis dibuat dengan **Semester Ganjil** (Jul–Des) dan
+  **Semester Genap** (Jan–Jun).
+- Setiap semester menyimpan **jumlah hari masuk (hari efektif)**; angka ini
+  menjadi dasar persentase kehadiran.
+- Alur: **Mulai** semester → guru mengabsen → **Selesaikan & lanjut**.
+  - Ganjil selesai → Genap tahun yang sama aktif.
+  - Genap selesai → Ganjil tahun ajaran berikutnya dibuat/diaktifkan.
+- Tahun ajaran lama dapat diarsipkan (nonaktif) dan tetap dibuka lewat
+  **Tampilkan arsip**. Tombol **Arsipkan > 5 tahun** menjalankan
+  `archive_old_academic_years()` — tidak ada data yang dihapus.
+
+### Kelas VII · VIII · IX (menu *Kelas VII · VIII · IX*)
+- Kartu ringkas jumlah siswa & rombel per tingkat.
+- Tab per tingkat, tabel siswa dengan kehadiran semester berjalan.
+- **Tambah Siswa**, **Tambah Rombel**, pindah rombel, ubah status.
+- **Kenaikan Kelas**: VII → VIII → IX otomatis memakai akhiran rombel yang sama
+  (VIII-A → IX-A). Opsi **tandai kelas IX lulus** membuat catatan kelulusan.
+- Ekspor Excel per tingkat.
+
+### Kelulusan & Sekolah Lanjutan (menu *Kelulusan & Lanjutan*)
+- Daftar siswa kelas IX per tahun ajaran dengan status lulus/tidak lulus.
+- Isi **sekolah lanjutan** (SMA, MA, SMK, MAK, Pondok Pesantren, Lainnya),
+  kota, jalur masuk, NPSN.
+- Grafik distribusi sekolah tujuan dan ringkasan kelulusan.
+- Ekspor **Excel** dan **PDF**.
+
+### Akun (menu *Akun Admin* — khusus superadmin)
+- Buat akun **superadmin**, **admin**, atau **guru BK** langsung dari aplikasi.
+- Ubah nama, peran, dan status **Aktif / Nonaktif**.
+- Reset password akun lain, atau **hapus akun**.
+- Akun nonaktif tidak bisa login; profil & data tetap tersimpan.
+- Password di-hash di server oleh Supabase Auth (RPC `security definer`), bukan
+  di browser.
+
+### Data Siswa — foto maksimal 100 KB
+- Tombol unggah foto → gambar dikompres di browser (canvas) hingga **≤ 100 KB**,
+  disimpan di bucket `siswa-foto` (batas keras di server 102400 byte).
+- Pratinjau & ukuran akhir ditampilkan sebelum disimpan.
+
 ### Pengaturan
 - Nama madrasah, alamat, kota.
 - Nama/NIP Kepala Madrasah.
@@ -299,6 +376,8 @@ website/
 ├─ supabase/
 │  ├─ config.toml             # konfigurasi Supabase CLI
 │  ├─ migrations/             # migrasi otomatis saat push ke GitHub
+│  │  ├─ 20261104000000_init.sql
+│  │  └─ 20261105090000_akademik_roles.sql  # tahun ajaran, semester, akun
 │  ├─ schema.sql              # tabel + RLS + RPC (tanpa data siswa)
 │  ├─ schema-lengkap.local.sql# versi + 284 siswa (lokal, tidak di-push)
 │  ├─ BACA-INI.txt            # langkah menerapkan skema
@@ -316,9 +395,13 @@ website/
 │     ├─ exporters.js         # Excel, PDF, Word
 │     ├─ dashboard.js
 │     ├─ attendance.js
-│     ├─ recap.js
+│     ├─ attendance-recap.js  # rekap absensi (semester / rentang)
+│     ├─ years.js             # tahun ajaran & semester
+│     ├─ levels.js            # kelas VII / VIII / IX
+│     ├─ graduation.js        # kelulusan & sekolah lanjutan
 │     ├─ reports.js
 │     ├─ students.js
+│     ├─ accounts.js          # akun admin (superadmin)
 │     ├─ settings.js
 │     └─ app.js               # login, router, bootstrap
 ├─ vendor/                    # SheetJS, jsPDF, docx, FileSaver, supabase-js
@@ -332,6 +415,19 @@ website/
 - Login memakai **Supabase Auth** (password di-hash oleh Supabase, bukan di browser).
 - Semua tabel memakai **Row Level Security**: hanya pengguna `authenticated`
   dengan profil aktif (`profiles.aktif = true`) yang dapat membaca/menulis.
+- **Peran**:
+  | Peran | Hak |
+  |---|---|
+  | `superadmin` | Semua hak admin + membuat/mengubah/menonaktifkan/menghapus akun |
+  | `admin` | Kelola siswa, rombel, tahun ajaran, kenaikan kelas, kelulusan, foto |
+  | `guru_bk` | Absensi, rekap, laporan kerja, lihat data siswa (baca saja) |
+- RPC akun (`admin_*`) memakai `security definer` dan memeriksa
+  `is_superadmin()` di server, sehingga guru BK tidak dapat membuat/menghapus akun
+  walaupun memanggil API langsung.
+- Bucket `siswa-foto` dibatasi server-side: `file_size_limit = 102400` byte dan
+  hanya menerima `image/jpeg`, `image/png`, `image/webp`. Pengunggah juga
+  mengompres gambar di browser sebelum upload.
+- Superadmin tidak dapat menonaktifkan atau menghapus akunnya sendiri.
 - Kunci yang dipakai di browser adalah **publishable/anon key**, bukan secret.
 - Laporan disimpan melalui RPC `save_work_report` agar header + rincian kegiatan
   tersimpan dalam satu transaksi.
@@ -424,6 +520,11 @@ login di MCP berbeda dengan pemilik proyek. Jalankan `/mcps` → **supabase** �
 | Migrasi Supabase tidak jalan | Pastikan integrasi GitHub aktif, file berada di `supabase/migrations/`, dan namanya berawalan timestamp. |
 | Vercel menampilkan 404 | Set **Root Directory** `.` dan kosongkan **Output Directory**. |
 | Halaman Vercel/GitHub Pages kosong | Tambahkan alamat situs ke **Supabase → Authentication → URL Configuration**. |
+| Menu Tahun & Semester / Kelas tidak muncul | Akun Anda berperan `guru_bk`. Minta superadmin mengubah peran menjadi `admin`. |
+| "Tabel tahun ajaran belum tersedia" | Migrasi `20261105090000_akademik_roles.sql` belum dijalankan. |
+| Gagal membuat akun admin: `function ... does not exist` | Jalankan migrasi akademik (bagian 2b). |
+| Foto gagal diunggah | Pastikan bucket `siswa-foto` ada dan file ≤ 100 KB. Gambar besar otomatis dikompres; jika tetap gagal, pilih gambar lain. |
+| Kenaikan kelas tidak membuat siswa | Pastikan tahun ajaran tujuan sudah ada dan rombel tingkat tujuan sudah dibuat. |
 
 ---
 

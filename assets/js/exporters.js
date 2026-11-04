@@ -59,6 +59,7 @@
     var sub = schoolName().toUpperCase();
     var tanggal = meta.tanggal || ymdNow();
     var kelasLabel = meta.kelas ? "Kelas: " + meta.kelas : "Semua Kelas";
+    if (meta.tahun) kelasLabel += "  ·  " + meta.tahun + (meta.semester ? " (" + meta.semester + ")" : "");
 
     var data = [
       [title],
@@ -117,6 +118,7 @@
     var from = meta.from || U.firstDayOfMonthISO();
     var to = meta.to || ymdNow();
     var kelasLabel = meta.kelas ? "Kelas: " + meta.kelas : "Semua Kelas";
+    if (meta.hariEfektif) kelasLabel += "  ·  Hari efektif: " + meta.hariEfektif + " hari";
 
     var data = [
       ["REKAP ABSENSI KEHADIRAN SISWA"],
@@ -216,6 +218,7 @@
     var doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     var tanggal = meta.tanggal || ymdNow();
     var kelasLabel = meta.kelas ? "Kelas: " + meta.kelas : "Semua Kelas";
+    if (meta.tahun) kelasLabel += "  ·  " + meta.tahun + (meta.semester ? " (" + meta.semester + ")" : "");
     pdfHeader(doc, "ABSENSI KEHADIRAN SISWA", ["Tanggal: " + U.formatDateLong(tanggal), kelasLabel]);
 
     var counts = { masuk: 0, alpa: 0, sakit: 0, izin: 0 };
@@ -268,6 +271,7 @@
     var from = meta.from || U.firstDayOfMonthISO();
     var to = meta.to || ymdNow();
     var kelasLabel = meta.kelas ? "Kelas: " + meta.kelas : "Semua Kelas";
+    if (meta.hariEfektif) kelasLabel += "  ·  Hari efektif: " + meta.hariEfektif + " hari";
     pdfHeader(doc, "REKAP ABSENSI KEHADIRAN SISWA", ["Periode: " + U.formatDateID(from) + " s.d. " + U.formatDateID(to), kelasLabel]);
 
     var total = { hadir: 0, alpa: 0, sakit: 0, izin: 0, hari: 0 };
@@ -585,6 +589,153 @@
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
     XLSX.writeFile(wb, "Data_Siswa_BK_MTsN_2_Trenggalek.xlsx");
+  };
+
+  /* ============================================================
+     EXCEL — REKAP PER TINGKAT (VII / VIII / IX)
+     ============================================================ */
+  EX.levelExcel = function (rows, meta) {
+    meta = meta || {};
+    var XLSX = window.XLSX;
+    var tingkat = Number(meta.tingkat) || 7;
+    var roman = U.TINGKAT_ROMAN[tingkat] || String(tingkat);
+
+    var data = [
+      ["REKAP KEHADIRAN KELAS " + roman],
+      [schoolName().toUpperCase()],
+      ["Tahun ajaran: " + (meta.tahun || "-") + (meta.semester ? "  ·  " + meta.semester : "")],
+      ["Hari efektif: " + (meta.hariEfektif || 0) + " hari"],
+      [],
+      ["No", "Nama Siswa", "L/P", "Kelas", "NIS", "Hadir", "Alpa", "Sakit", "Izin", "Hari Tercatat", "% Hadir"]
+    ];
+
+    var total = { hadir: 0, alpa: 0, sakit: 0, izin: 0, hari: 0 };
+    rows.forEach(function (r, i) {
+      total.hadir += r.hadir; total.alpa += r.alpa; total.sakit += r.sakit; total.izin += r.izin; total.hari += r.total;
+      data.push([i + 1, r.nama, r.jenis_kelamin, r.kelas, r.nis || "", r.hadir, r.alpa, r.sakit, r.izin, r.total, r.persen + "%"]);
+    });
+    data.push([]);
+    data.push(["", "JUMLAH", "", "", "", total.hadir, total.alpa, total.sakit, total.izin, total.hari,
+      U.percent(total.hadir, Math.max(Number(meta.hariEfektif) * rows.length, total.hari)) + "%"]);
+    data.push([]);
+    data.push(["Mengetahui,", "", "", "", "", kota() + ", " + U.formatDateID(ymdNow()), ""]);
+    data.push(["Kepala " + schoolName(), "", "", "", "", guruJabatan(), ""]);
+    data.push([kepalaNama(), "", "", "", "", guruNama(), ""]);
+    data.push([nipLabel(kepalaNip()), "", "", "", "", nipLabel(guruNip()), ""]);
+
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws["!cols"] = [{ wch: 6 }, { wch: 38 }, { wch: 6 }, { wch: 10 }, { wch: 16 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 13 }, { wch: 10 }];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 10 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 10 } }
+    ];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kelas " + roman);
+    XLSX.writeFile(wb, U.filename(["Rekap Kelas", roman, meta.tahun || ""]) + ".xlsx");
+  };
+
+  /* ============================================================
+     EXCEL & PDF — KELULUSAN & SEKOLAH LANJUTAN
+     ============================================================ */
+  EX.graduationExcel = function (rows, meta) {
+    meta = meta || {};
+    var XLSX = window.XLSX;
+
+    var data = [
+      ["REKAPITULASI KELULUSAN & SEKOLAH LANJUTAN KELAS IX"],
+      [schoolName().toUpperCase()],
+      ["Tahun ajaran: " + (meta.tahun || "-")],
+      [],
+      ["No", "Nama Siswa", "L/P", "Kelas", "Status", "Sekolah Lanjutan", "Jenis", "Jalur", "Kota", "Hadir", "Hari Tercatat", "% Hadir"]
+    ];
+
+    var jenis = {};
+    var lulus = 0;
+    rows.forEach(function (r, i) {
+      if (r.status === "lulus") lulus++;
+      var key = r.sekolah_lanjutan || "(belum diisi)";
+      jenis[key] = (jenis[key] || 0) + 1;
+      data.push([
+        i + 1, r.nama, r.jenis_kelamin, r.kelas, U.capitalize(r.status || "-"),
+        r.sekolah_lanjutan || "-", r.jenis_sekolah || "-", r.jalur || "-", r.kota_sekolah || "-",
+        r.hadir, r.total, r.persen + "%"
+      ]);
+    });
+
+    data.push([]);
+    data.push(["RINGKASAN"]);
+    data.push(["Siswa", rows.length]);
+    data.push(["Lulus", lulus]);
+    data.push(["Sudah tercatat lanjut", rows.filter(function (r) { return r.sekolah_lanjutan; }).length]);
+    data.push([]);
+    data.push(["Sekolah Lanjutan", "Jumlah Siswa"]);
+    Object.keys(jenis).forEach(function (k) { data.push([k, jenis[k]]); });
+    data.push([]);
+    data.push(["Mengetahui,", "", "", kota() + ", " + U.formatDateID(ymdNow())]);
+    data.push(["Kepala " + schoolName(), "", "", guruJabatan()]);
+    data.push([kepalaNama(), "", "", guruNama()]);
+    data.push([nipLabel(kepalaNip()), "", "", nipLabel(guruNip())]);
+
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws["!cols"] = [{ wch: 6 }, { wch: 34 }, { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 8 }, { wch: 13 }, { wch: 10 }];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } }
+    ];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kelulusan");
+    XLSX.writeFile(wb, U.filename(["Kelulusan", meta.tahun || "", ymdNow()]) + ".xlsx");
+  };
+
+  EX.graduationPdf = function (rows, meta) {
+    meta = meta || {};
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    pdfHeader(doc, "REKAPITULASI KELULUSAN & SEKOLAH LANJUTAN KELAS IX", ["Tahun ajaran: " + (meta.tahun || "-")]);
+
+    var lulus = rows.filter(function (r) { return r.status === "lulus"; }).length;
+    var body = rows.map(function (r, i) {
+      return [
+        i + 1, r.nama, r.jenis_kelamin, r.kelas, U.capitalize(r.status || "-"),
+        r.sekolah_lanjutan || "-", r.jenis_sekolah || "-", r.jalur || "-",
+        r.hadir + "/" + r.total, r.persen + "%"
+      ];
+    });
+    body.push(["", "JUMLAH", "", "", lulus + " lulus", "", "", "", "", ""]);
+
+    doc.autoTable({
+      startY: 40,
+      head: [["No", "Nama Siswa", "L/P", "Kelas", "Status", "Sekolah Lanjutan", "Jenis", "Jalur", "Hadir", "% Hadir"]],
+      body: body,
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 8, cellPadding: 1.8, lineColor: [130, 130, 130], lineWidth: 0.1, textColor: [25, 25, 25], valign: "middle" },
+      headStyles: { fillColor: [15, 118, 110], textColor: [255, 255, 255], fontStyle: "bold", halign: "center", fontSize: 8.5 },
+      columnStyles: {
+        0: { halign: "center", cellWidth: 10 },
+        1: { cellWidth: 55 },
+        2: { halign: "center", cellWidth: 12 },
+        3: { halign: "center", cellWidth: 16 },
+        4: { halign: "center", cellWidth: 22 },
+        5: { cellWidth: 58 },
+        6: { halign: "center", cellWidth: 24 },
+        7: { halign: "center", cellWidth: 22 },
+        8: { halign: "center", cellWidth: 16 },
+        9: { halign: "center", cellWidth: 18 }
+      },
+      margin: { left: 15, right: 15, top: 15, bottom: 16 }
+    });
+
+    var y = doc.lastAutoTable.finalY + 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text("Ringkasan: " + rows.length + " siswa kelas IX  •  " + lulus + " lulus  •  " +
+      rows.filter(function (r) { return r.sekolah_lanjutan; }).length + " sudah tercatat sekolah lanjutan", 15, y);
+    pdfSignature(doc, y + 4, meta);
+    pdfFooter(doc);
+    doc.save(U.filename(["Kelulusan", meta.tahun || "", ymdNow()]) + ".pdf");
   };
 
   window.EX = EX;

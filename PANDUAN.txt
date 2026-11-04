@@ -12,6 +12,15 @@ LANGKAH 1 — JALANKAN SKEMA DATABASE (sekali saja)
 4. Tempel di SQL Editor, lalu klik "Run".
 5. Pastikan hasil akhir menampilkan total_siswa = 284.
 
+6. WAJIB SEKALI: jalankan juga
+   "supabase\migrations\20261105090000_akademik_roles.sql"
+   dengan cara yang sama (New query > copy > Run).
+   File ini membuat tahun ajaran, semester, riwayat kelas,
+   kelulusan, akun admin, dan storage foto 100 KB.
+
+   Jika integrasi GitHub Supabase aktif, file migrasi dijalankan
+   otomatis setiap push (tidak perlu langkah ini).
+
 
 LANGKAH 2 — PERIKSA KONFIGURASI
 -------------------------------
@@ -58,7 +67,17 @@ menu Pengaturan > Akun > "Ganti Password".
 FITUR
 -----
 - Absensi harian: Masuk / Tidak Masuk (Alpa, Sakit, Izin).
-- Rekap absensi per kelas dan periode.
+- Rekap absensi per semester; persentase dihitung dari
+  jumlah hari masuk (hari efektif) tiap semester.
+- Tahun ajaran = Semester Ganjil + Semester Genap.
+  Satu tahun ajaran dapat dilanjutkan ke semester berikutnya.
+- Kelas VII, VIII, IX per tahun ajaran, kenaikan kelas otomatis.
+- Kelulusan kelas IX + rekapitulasi sekolah lanjutan.
+- Data tersimpan sampai 5 tahun; tahun lebih lama diarsipkan
+  (fitur Aktif / Nonaktif), tidak dihapus.
+- Akun superadmin, admin, dan guru BK. Superadmin dapat membuat,
+  mengubah, menonaktifkan, dan menghapus akun admin.
+- Foto siswa otomatis dikompres maksimal 100 KB.
 - Laporan kerja bulanan, unduh Word (.docx) dan PDF.
 - Data siswa: tambah, edit, import Excel, ekspor Excel.
 - Pengaturan identitas madrasah dan penandatangan laporan.

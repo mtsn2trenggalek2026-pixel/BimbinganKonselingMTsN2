@@ -394,5 +394,129 @@
     return Math.round((part / total) * 1000) / 10;
   };
 
+  /* ---------- Akademik ---------- */
+  U.TINGKAT_LABEL = { 7: "Kelas VII", 8: "Kelas VIII", 9: "Kelas IX" };
+  U.TINGKAT_ROMAN = { 7: "VII", 8: "VIII", 9: "IX" };
+  U.SEMESTER_LABEL = { ganjil: "Semester Ganjil", genap: "Semester Genap" };
+
+  U.tahunAjaranLabel = function (year) {
+    if (!year) return "-";
+    if (year.nama) return year.nama;
+    if (!year.tahun_awal) return "-";
+    return year.tahun_awal + "/" + (year.tahun_awal + 1);
+  };
+
+  U.semesterLabel = function (sem) {
+    if (!sem) return "-";
+    return (sem.jenis === "genap" ? "Genap" : "Ganjil") + (sem.urutan ? "" : "");
+  };
+
+  U.kelasTingkat = function (kelas) {
+    var k = String(kelas || "").toUpperCase().replace(/[\s.]/g, "");
+    if (/^(IX|9)/.test(k)) return 9;
+    if (/^(VIII|8)/.test(k)) return 8;
+    return 7;
+  };
+
+  U.formatBytes = function (bytes) {
+    var b = Number(bytes) || 0;
+    if (b < 1024) return b + " B";
+    return (Math.round((b / 1024) * 10) / 10) + " KB";
+  };
+
+  U.rangeDays = function (from, to) {
+    var a = U.parseISO(from);
+    var b = U.parseISO(to);
+    if (!a || !b) return 0;
+    var diff = Math.round((b - a) / 86400000) + 1;
+    return diff > 0 ? diff : 0;
+  };
+
+  U.addDays = function (iso, n) {
+    var d = U.parseISO(iso);
+    if (!d) return iso;
+    d.setDate(d.getDate() + Number(n || 0));
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  };
+
+  U.inRange = function (iso, from, to) {
+    if (!iso) return false;
+    return (!from || iso >= from) && (!to || iso <= to);
+  };
+
+  /* ---------- Kompres gambar ----------
+     Memperkecil gambar di browser (canvas) sampai ukuran byte
+     maksimal tercapai. Dipakai untuk foto siswa (maks. 100 KB). */
+  U.compressImage = function (file, maxBytes, opts) {
+    var o = opts || {};
+    var limit = maxBytes || 102400;
+    var maxDim = o.maxDimension || 900;
+    var startQuality = o.quality || 0.85;
+
+    return new Promise(function (resolve, reject) {
+      if (!file) { reject(new Error("File tidak ditemukan.")); return; }
+      if (!/^image\//.test(file.type || "")) {
+        reject(new Error("File harus berupa gambar (JPG, PNG, atau WEBP)."));
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onerror = function () { reject(new Error("File tidak dapat dibaca.")); };
+      reader.onload = function (ev) {
+        var img = new Image();
+        img.onerror = function () { reject(new Error("Gambar tidak dapat diproses.")); };
+        img.onload = function () {
+          var attempts = [];
+          var dims = [maxDim, Math.round(maxDim * 0.8), Math.round(maxDim * 0.6), Math.round(maxDim * 0.45), 320];
+          var qualities = [startQuality, 0.72, 0.6, 0.48, 0.38, 0.3];
+          dims.forEach(function (dim) {
+            qualities.forEach(function (q) { attempts.push({ dim: dim, quality: q }); });
+          });
+
+          var idx = 0;
+          function tryNext() {
+            if (idx >= attempts.length) {
+              reject(new Error("Gambar tidak dapat dikompres di bawah " + U.formatBytes(limit) + "."));
+              return;
+            }
+            var a = attempts[idx++];
+            var scale = Math.min(1, a.dim / Math.max(img.width, img.height));
+            var w = Math.max(1, Math.round(img.width * scale));
+            var h = Math.max(1, Math.round(img.height * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            var ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+
+            canvas.toBlob(function (blob) {
+              if (!blob) { tryNext(); return; }
+              if (blob.size <= limit) {
+                resolve({ blob: blob, width: w, height: h, quality: a.quality, size: blob.size });
+              } else {
+                tryNext();
+              }
+            }, a.quality >= 0.95 ? "image/png" : "image/jpeg", a.quality);
+          }
+          tryNext();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  /* ---------- Preview foto (avatar) ---------- */
+  U.avatarHtml = function (student, size) {
+    var cls = "avatar" + (size ? " " + size : "");
+    var url = student && window.API && API.getPhotoUrl ? API.getPhotoUrl(student) : "";
+    if (url) {
+      return '<span class="' + cls + ' avatar-photo"><img src="' + U.escape(url) + '" alt="' + U.escape(student.nama || "Foto siswa") + '" loading="lazy"></span>';
+    }
+    return '<span class="' + cls + '">' + U.escape(U.initials(student && student.nama)) + "</span>";
+  };
+
   window.U = U;
 })();

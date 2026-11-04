@@ -18,8 +18,19 @@
     var today = U.todayISO();
     var profile = window.APP_STATE.profile || {};
     var userName = profile.full_name || (window.APP_STATE.user && window.APP_STATE.user.email) || "Guru BK";
+    var semester = window.APP_STATE.activeSemester;
+    var year = window.APP_STATE.activeYear;
 
     container.innerHTML =
+      (semester && year
+        ? '<div class="semester-strip">' +
+            '<div class="ss-item"><span class="ss-label">Tahun ajaran</span><strong>' + U.escape(U.tahunAjaranLabel(year)) + "</strong></div>" +
+            '<div class="ss-item"><span class="ss-label">Semester berjalan</span><strong>' + U.escape(U.SEMESTER_LABEL[semester.jenis]) + "</strong></div>" +
+            '<div class="ss-item"><span class="ss-label">Hari efektif</span><strong>' + semester.hari_efektif + " hari</strong></div>" +
+            '<div class="ss-item"><span class="ss-label">Periode</span><strong>' + U.escape(U.formatDateID(semester.tanggal_mulai)) + " – " + U.escape(U.formatDateID(semester.tanggal_selesai)) + "</strong></div>" +
+            (App.canSee("tahun") ? '<a class="btn btn-ghost btn-sm ss-link" href="#/tahun">' + U.icon("settings", 15) + "<span>Atur</span></a>" : "") +
+          "</div>"
+        : "") +
       '<div class="welcome-banner">' +
         '<div class="welcome-text">' +
           "<span class=\"eyebrow\">" + U.escape(U.formatDateLong(today)) + "</span>" +
@@ -36,6 +47,8 @@
         '<a class="quick-action" href="#/laporan?new=1"><span class="qa-icon tone-amber">' + U.icon("filePlus", 20) + "</span><span><strong>Buat Laporan Kerja</strong><small>Laporan siap cetak</small></span>" + U.icon("arrowRight", 17) + "</a>" +
         '<a class="quick-action" href="#/rekap"><span class="qa-icon tone-blue">' + U.icon("chart", 20) + "</span><span><strong>Rekap Absensi</strong><small>Lihat rekap periode</small></span>" + U.icon("arrowRight", 17) + "</a>" +
         '<a class="quick-action" href="#/siswa"><span class="qa-icon tone-violet">' + U.icon("users", 20) + "</span><span><strong>Data Siswa</strong><small>Kelola daftar siswa</small></span>" + U.icon("arrowRight", 17) + "</a>" +
+        (App.canSee("tingkat") ? '<a class="quick-action" href="#/tingkat"><span class="qa-icon tone-teal">' + U.icon("book", 20) + "</span><span><strong>Kelas VII · VIII · IX</strong><small>Rombel &amp; kenaikan kelas</small></span>" + U.icon("arrowRight", 17) + "</a>" : "") +
+        (App.canSee("lulus") ? '<a class="quick-action" href="#/lulus"><span class="qa-icon tone-amber">' + U.icon("clipboard", 20) + "</span><span><strong>Kelulusan Kelas IX</strong><small>Sekolah lanjutan</small></span>" + U.icon("arrowRight", 17) + "</a>" : "") +
       "</div>" +
       '<div id="dashboard-stats" class="stats-grid">' +
         statCard("users", "Total Siswa", '<span class="skeleton-text">—</span>', "siswa aktif", "teal") +
@@ -53,13 +66,21 @@
   }
 
   async function load(container, students, today) {
+    var semester = window.APP_STATE.activeSemester;
     try {
       var results = await Promise.all([
-        API.getAttendanceByDate(today),
-        API.getReports()
+        API.getAttendanceByDate(today, semester),
+        API.getReports(),
+        semester && semester.tanggal_mulai
+          ? API.getAttendanceRange(semester.tanggal_mulai, semester.tanggal_selesai, {
+              academicYearId: semester.academic_year_id,
+              semesterId: semester.id
+            })
+          : Promise.resolve([])
       ]);
       var att = results[0] || [];
       var reports = results[1] || [];
+      var semesterAtt = results[2] || [];
 
       var studentById = {};
       students.forEach(function (s) { studentById[s.id] = s; });
@@ -72,10 +93,20 @@
       var currentMonth = U.monthKey(today);
       var reportsThisMonth = reports.filter(function (r) { return U.monthKey(r.bulan) === currentMonth; }).length;
 
+      // Kehadiran semester berjalan dibandingkan jumlah hari efektif.
+      var semHadir = semesterAtt.filter(function (a) { return a.status === "masuk"; }).length;
+      var semDays = {};
+      semesterAtt.forEach(function (a) { semDays[a.tanggal] = true; });
+      var dayCount = Object.keys(semDays).length;
+      var efektif = semester ? Number(semester.hari_efektif) || 0 : 0;
+      var semPersen = U.percent(semHadir, Math.max(efektif * students.length, semesterAtt.length));
+
       var stats = U.$("#dashboard-stats", container);
       stats.innerHTML =
         statCard("users", "Total Siswa", students.length, "siswa aktif", "teal") +
         statCard("checkCircle", "Hadir Hari Ini", hadir, att.length ? "dari " + att.length + " tercatat" : "belum ada absensi", "green") +
+        statCard("chart", "Kehadiran Semester", semPersen + "%",
+          dayCount + " dari " + (efektif || "–") + " hari efektif" + (semester ? " · " + U.SEMESTER_LABEL[semester.jenis] : ""), "blue") +
         statCard("alert", "Tidak Masuk", tidak.length, "Alpa " + alpa + " · Sakit " + sakit + " · Izin " + izin, "red") +
         statCard("file", "Laporan Bulan Ini", reportsThisMonth, "dokumen tersimpan", "amber");
 

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Data pribadi siswa — JANGAN diunggah ke repositori publik
 # ============================================================
 supabase/schema-lengkap.local.sql
@@ -13,3 +13,6 @@ desktop.ini
 .DS_Store
 *.log
 *.tmp
+
+# Cadangan lokal
+*.local.sql

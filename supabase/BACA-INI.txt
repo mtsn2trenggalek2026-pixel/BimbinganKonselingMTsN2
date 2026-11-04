@@ -30,6 +30,16 @@
    - work_reports      (0 baris)
    - work_report_items (0 baris)
    - app_settings      (1 baris)
+   - academic_years    (tahun ajaran)
+   - semesters         (ganjil & genap + hari efektif)
+   - class_groups      (rombel VII/VIII/IX)
+   - student_history   (riwayat kelas per tahun ajaran)
+   - graduations       (kelulusan & sekolah lanjutan)
+
+   Tabel tahun ajaran/semester/kelulusan dibuat oleh file:
+     migrations\20261105090000_akademik_roles.sql
+   Jalankan file itu di SQL Editor SETELAH schema.sql
+   (atau lewat integrasi GitHub Supabase agar otomatis).
 
 7. Buka "Authentication" > "Users" > "Add user" >
    "Create new user":

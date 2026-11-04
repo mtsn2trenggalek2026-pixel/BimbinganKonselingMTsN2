@@ -795,3 +795,141 @@ body.modal-open { overflow: hidden; }
   .data-table thead th, .data-table tbody td { padding-left: 10px; padding-right: 10px; }
   .page-head h1 { font-size: 20px; }
 }
+/* ============================================================
+   Tambahan: Tahun Ajaran, Semester, Tingkat, Akun
+   ============================================================ */
+
+/* ---------- Badge peran ---------- */
+.badge-super { background: #f5f3ff; color: var(--violet); }
+.badge-admin { background: var(--teal-50); color: var(--teal-700); }
+.badge-info { background: var(--blue-bg); color: var(--blue); }
+#sidebar-role { margin-top: 4px; font-size: 9.5px; padding: 1px 7px; }
+.nav-link.hidden, .nav-section.hidden, .nav-admin.hidden { display: none !important; }
+
+/* ---------- Konteks semester di sidebar ---------- */
+.sidebar-context {
+  margin: 0 12px 10px; padding: 10px 12px; border-radius: 11px;
+  background: linear-gradient(135deg, rgba(45, 212, 191, .14), rgba(15, 118, 110, .08));
+  border: 1px solid rgba(13, 148, 136, .18);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.sidebar-context strong { font-size: 12px; font-weight: 700; color: var(--teal-800); letter-spacing: -.01em; }
+.sidebar-context span { font-size: 10.5px; color: var(--teal-700); }
+
+/* ---------- Strip semester (dipakai di dasbor & absensi) ---------- */
+.semester-strip {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--border-soft); border-radius: 13px;
+  padding: 11px 14px; margin-bottom: 16px; box-shadow: var(--shadow-sm);
+}
+.ss-item { display: flex; flex-direction: column; padding-right: 18px; border-right: 1px solid var(--border); }
+.ss-item:last-of-type { border-right: none; }
+.ss-label { font-size: 9.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted-2); }
+.ss-item strong { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.ss-link { margin-left: auto; }
+
+/* ---------- Daftar tahun ajaran ---------- */
+.year-list { display: flex; flex-direction: column; gap: 14px; }
+.year-card { padding: 16px 18px; }
+.year-card.is-archived { opacity: .78; background: #fbfcfc; }
+.year-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.year-title { display: flex; align-items: center; gap: 12px; }
+.year-mark {
+  width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--teal-500), var(--teal-700));
+  color: #fff; font-weight: 800; font-size: 15px; letter-spacing: .02em;
+}
+.year-title h3 { font-size: 15px; font-weight: 750; letter-spacing: -.015em; }
+.year-title p { font-size: 12px; color: var(--muted); }
+.year-flags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sem-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sem-card {
+  border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  background: #fcfdfd; display: flex; flex-direction: column; gap: 10px;
+}
+.sem-card.is-active { border-color: var(--teal-400); background: var(--teal-50); box-shadow: 0 0 0 3px rgba(45, 212, 191, .12); }
+.sem-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.sem-head strong { display: block; font-size: 13px; font-weight: 750; }
+.sem-head small { display: block; font-size: 11px; color: var(--muted); }
+.sem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sem-stat { display: flex; flex-direction: column; gap: 1px; background: #fff; border-radius: 9px; padding: 7px 10px; border: 1px solid var(--border-soft); }
+.sem-stat span { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-2); }
+.sem-stat strong { font-size: 13px; font-weight: 750; }
+.sem-stat small { font-size: 10.5px; color: var(--muted); }
+.link-btn { align-self: flex-start; margin-top: 2px; background: none; border: none; padding: 0; font-size: 11px; font-weight: 600; color: var(--teal-700); text-align: left; }
+.link-btn:hover { text-decoration: underline; }
+.sem-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sem-note { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--green); font-weight: 600; }
+.sem-note.muted { color: var(--muted); font-weight: 500; }
+.sem-empty { grid-column: 1 / -1; padding: 16px; text-align: center; color: var(--muted); font-size: 12.5px; border: 1px dashed var(--border); border-radius: 10px; }
+.sem-fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 14px; margin: 0; }
+.sem-fieldset legend { padding: 0 6px; font-size: 11.5px; font-weight: 750; color: var(--teal-700); letter-spacing: .02em; }
+.form-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+/* ---------- Halaman tingkat (VII/VIII/IX) ---------- */
+.levels-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.level-card { background: #fff; border: 1px solid var(--border-soft); border-radius: 13px; padding: 14px; box-shadow: var(--shadow-sm); }
+.level-card.is-selected { border-color: var(--teal-400); box-shadow: 0 0 0 3px rgba(45, 212, 191, .12); }
+.level-head { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+.level-roman {
+  width: 40px; height: 40px; border-radius: 11px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--teal-50); color: var(--teal-700); font-weight: 800; font-size: 13px;
+}
+.level-head strong { display: block; font-size: 13px; font-weight: 750; }
+.level-head small { font-size: 11px; color: var(--muted); }
+.level-body { display: flex; flex-direction: column; gap: 4px; }
+.level-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+.level-row span { color: var(--text-soft); }
+.level-row strong { font-weight: 700; color: var(--teal-700); }
+
+/* ---------- Tab ---------- */
+.tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.tab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+  border-radius: 999px; border: 1px solid var(--border); background: #fff;
+  font-size: 12.5px; font-weight: 600; color: var(--text-soft);
+}
+.tab.active { background: var(--teal-700); border-color: var(--teal-700); color: #fff; }
+.tab-count { font-size: 10.5px; padding: 0 6px; border-radius: 999px; background: rgba(15, 23, 42, .07); }
+.tab.active .tab-count { background: rgba(255, 255, 255, .22); }
+.tabs-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* ---------- Grafik distribusi ---------- */
+.dash-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+.dist-list { padding: 12px 18px 18px; display: flex; flex-direction: column; gap: 9px; }
+.dist-list .mini-empty { padding: 18px 0; }
+
+/* ---------- Foto siswa ---------- */
+.avatar-photo { overflow: hidden; padding: 0 !important; background: #eef2f1; }
+.avatar-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-field { display: flex; align-items: flex-start; gap: 14px; }
+.photo-preview {
+  width: 74px; height: 74px; border-radius: 14px; flex: 0 0 auto;
+  background: #eef2f1; border: 1px solid var(--border); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; color: var(--muted-2);
+}
+.photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-actions { display: flex; flex-direction: column; gap: 4px; }
+.photo-actions strong { font-size: 12.5px; font-weight: 700; }
+.photo-actions small { font-size: 11px; color: var(--muted); }
+.photo-buttons { display: flex; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+
+/* ---------- Responsif ---------- */
+@media (max-width: 1000px) {
+  .levels-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dash-grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 820px) {
+  .sem-row { grid-template-columns: 1fr; }
+  .levels-overview { grid-template-columns: 1fr; }
+  .form-grid-2 { grid-template-columns: 1fr !important; }
+  .semester-strip .ss-item { border-right: none; padding-right: 0; }
+  .ss-link { margin-left: 0; }
+}
+@media (max-width: 480px) {
+  .year-card { padding: 13px; }
+  .sem-grid { grid-template-columns: 1fr; }
+  .semester-strip { gap: 8px; }
+}

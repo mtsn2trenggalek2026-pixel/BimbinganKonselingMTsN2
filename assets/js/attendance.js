@@ -8,14 +8,33 @@
     container: null,
     tanggal: "",
     kelas: "",
+    tingkat: "",
     search: "",
     students: [],
     records: {},
     entries: {},
+    semester: null,
+    year: null,
     loading: false,
     dirty: false,
     token: 0
   };
+
+  function semesterCtx() {
+    var sem = state.semester;
+    var year = state.year;
+    if (!sem) {
+      return '<div class="notice notice-warning">' + U.icon("info", 18) +
+        "<span>Semester berjalan belum diatur. Buka <strong>Tahun &amp; Semester</strong> untuk memulai semester agar absensi tercatat pada semester yang benar.</span></div>";
+    }
+    return '<div class="semester-strip">' +
+      '<div class="ss-item"><span class="ss-label">Tahun ajaran</span><strong>' + U.escape(U.tahunAjaranLabel(year)) + "</strong></div>" +
+      '<div class="ss-item"><span class="ss-label">Semester</span><strong>' + U.escape(U.SEMESTER_LABEL[sem.jenis]) + "</strong></div>" +
+      '<div class="ss-item"><span class="ss-label">Hari efektif</span><strong>' + (sem.hari_efektif || 0) + " hari</strong></div>" +
+      '<div class="ss-item"><span class="ss-label">Periode</span><strong>' + U.escape(U.formatDateID(sem.tanggal_mulai)) + " – " + U.escape(U.formatDateID(sem.tanggal_selesai)) + "</strong></div>" +
+      '<a class="btn btn-ghost btn-sm ss-link" href="#/tahun">' + U.icon("settings", 15) + "<span>Atur</span></a>" +
+    "</div>";
+  }
 
   function shell() {
     var classes = U.uniqueClasses(state.students);
@@ -27,9 +46,14 @@
           '<button type="button" class="btn btn-secondary" id="abs-pdf">' + U.icon("printer", 17) + "<span>PDF</span></button>" +
         "</div>" +
       "</div>" +
+      semesterCtx() +
       '<div class="card filter-card">' +
         '<div class="filter-row">' +
-          '<div class="field"><label for="abs-tanggal">Tanggal</label><input type="date" id="abs-tanggal" value="' + state.tanggal + '"></div>' +
+          '<div class="field"><label for="abs-tanggal">Tanggal</label><input type="date" id="abs-tanggal" value="' + state.tanggal + '"' +
+            (state.semester && state.semester.tanggal_mulai ? ' min="' + state.semester.tanggal_mulai.slice(0, 10) + '" max="' + state.semester.tanggal_selesai.slice(0, 10) + '"' : "") + "></div>" +
+          '<div class="field"><label for="abs-tingkat">Tingkat</label><select id="abs-tingkat"><option value="">Semua Tingkat</option>' +
+            [7, 8, 9].map(function (t) { return '<option value="' + t + '"' + (String(state.tingkat) === String(t) ? " selected" : "") + ">Kelas " + U.TINGKAT_ROMAN[t] + "</option>"; }).join("") +
+          "</select></div>" +
           '<div class="field"><label for="abs-kelas">Kelas</label><select id="abs-kelas"><option value="">Semua Kelas</option>' +
             classes.map(function (k) { return '<option value="' + U.escape(k) + '">' + U.escape(k) + "</option>"; }).join("") +
           "</select></div>" +
@@ -42,6 +66,7 @@
         '<div class="summary-card tone-red"><span class="summary-label">Alpa</span><strong id="sum-alpa">0</strong><small>siswa</small></div>' +
         '<div class="summary-card tone-amber"><span class="summary-label">Sakit</span><strong id="sum-sakit">0</strong><small>siswa</small></div>' +
         '<div class="summary-card tone-blue"><span class="summary-label">Izin</span><strong id="sum-izin">0</strong><small>siswa</small></div>' +
+        '<div class="summary-card tone-teal"><span class="summary-label">Hari ke- dari efektif</span><strong id="sum-hari">0</strong><small id="sum-hari-note">hari</small></div>' +
       "</div>" +
       '<div class="card table-card">' +
         '<div class="table-toolbar">' +
@@ -62,7 +87,11 @@
   }
 
   function getClassStudents() {
-    return state.students.filter(function (s) { return !state.kelas || s.kelas === state.kelas; });
+    return state.students.filter(function (s) {
+      if (state.kelas) return s.kelas === state.kelas;
+      if (state.tingkat) return U.kelasTingkat(s.kelas) === Number(state.tingkat);
+      return true;
+    });
   }
 
   function getVisibleStudents() {
@@ -82,7 +111,7 @@
         }).join("") + "</div>";
     return '<tr data-id="' + U.escape(s.id) + '">' +
       '<td class="col-no">' + (index + 1) + "</td>" +
-      '<td><div class="student-cell"><span class="avatar avatar-xs">' + U.escape(U.initials(s.nama)) + "</span>" +
+      '<td><div class="student-cell">' + U.avatarHtml(s, "avatar-xs") +
         '<div class="student-cell-text"><strong>' + U.escape(s.nama) + "</strong>" + (s.nis ? '<small>NIS ' + U.escape(s.nis) + "</small>" : "") + "</div></div></td>" +
       '<td class="col-center"><span class="badge badge-gender ' + (s.jenis_kelamin === "P" ? "female" : "male") + '">' + U.escape(s.jenis_kelamin) + "</span></td>" +
       '<td class="col-center"><span class="class-pill">' + U.escape(s.kelas) + "</span></td>" +
@@ -123,6 +152,21 @@
       var node = U.$(sel, state.container);
       if (node) node.textContent = map[sel];
     });
+
+    // Hari ke berapa dihitung dari tanggal-tanggal absensi semester berjalan.
+    var days = {};
+    (state.rangeRecords || []).forEach(function (r) {
+      if (r && r.tanggal) days[r.tanggal] = true;
+    });
+    days[state.tanggal] = true;
+    var sorted = Object.keys(days).sort();
+    var idx = sorted.indexOf(state.tanggal);
+    var hariNode = U.$("#sum-hari", state.container);
+    if (hariNode) {
+      hariNode.textContent = (idx >= 0 ? idx + 1 : sorted.length) + "/" + (state.semester ? state.semester.hari_efektif : "–");
+    }
+    var note = U.$("#sum-hari-note", state.container);
+    if (note) note.textContent = sorted.length + " hari tercatat";
   }
 
   function updateDirty() {
@@ -149,7 +193,15 @@
     state.dirty = false;
     renderTable();
     try {
-      var records = await API.getAttendanceByDate(state.tanggal);
+      var res = await Promise.all([
+        API.getAttendanceByDate(state.tanggal, state.semester),
+        state.semester ? API.getAttendanceRange(state.semester.tanggal_mulai, state.semester.tanggal_selesai, {
+          academicYearId: state.semester.academic_year_id,
+          semesterId: state.semester.id
+        }) : Promise.resolve([])
+      ]);
+      var records = res[0];
+      state.rangeRecords = res[1] || [];
       if (token !== state.token) return;
       state.records = {};
       (records || []).forEach(function (r) { state.records[r.student_id] = r; });
@@ -217,7 +269,7 @@
     var rows = collectRows(list);
     U.buttonLoading(btn, true);
     try {
-      var saved = await API.saveAttendance(rows);
+      var saved = await API.saveAttendance(rows, state.semester);
       (saved || []).forEach(function (r) { state.records[r.student_id] = r; });
       state.dirty = false;
       updateDirty();
@@ -247,7 +299,13 @@
   function doExport(kind) {
     var rows = exportRows();
     if (!rows.length) { U.toast("Tidak ada data untuk diekspor.", "warning"); return; }
-    var meta = { tanggal: state.tanggal, kelas: state.kelas, tanggalTTD: U.todayISO() };
+    var meta = {
+      tanggal: state.tanggal,
+      kelas: state.kelas || (state.tingkat ? "Kelas " + U.TINGKAT_ROMAN[state.tingkat] : ""),
+      tahun: U.tahunAjaranLabel(state.year),
+      semester: state.semester ? U.SEMESTER_LABEL[state.semester.jenis] : "",
+      tanggalTTD: U.todayISO()
+    };
     try {
       if (kind === "excel") EX.attendanceExcel(rows, meta);
       else EX.attendancePdf(rows, meta);
@@ -262,6 +320,14 @@
       state.tanggal = e.target.value || U.todayISO();
       loadData();
     });
+    var tingkatSel = U.$("#abs-tingkat", container);
+    if (tingkatSel) {
+      tingkatSel.addEventListener("change", function (e) {
+        state.tingkat = e.target.value;
+        state.kelas = "";
+        renderTable();
+      });
+    }
     U.$("#abs-kelas", container).addEventListener("change", function (e) {
       state.kelas = e.target.value;
       renderTable();
@@ -304,12 +370,25 @@
     state.container = container;
     state.tanggal = U.todayISO();
     state.kelas = "";
+    state.tingkat = "";
     state.search = "";
     state.students = U.sortStudents((window.APP_STATE.students || []).slice());
     state.entries = {};
     state.records = {};
+    state.rangeRecords = [];
     state.dirty = false;
     state.token++;
+    state.semester = window.APP_STATE.activeSemester || null;
+    state.year = window.APP_STATE.activeYear || null;
+
+    // Tanggal hari ini di luar periode semester berjalan → pakai tanggal mulai.
+    if (state.semester && state.semester.tanggal_mulai) {
+      var today = U.todayISO();
+      if (!U.inRange(today, state.semester.tanggal_mulai, state.semester.tanggal_selesai)) {
+        state.tanggal = today < state.semester.tanggal_mulai ? state.semester.tanggal_mulai.slice(0, 10)
+          : state.semester.tanggal_selesai.slice(0, 10);
+      }
+    }
     container.innerHTML = shell();
     bind(container);
     loadData();

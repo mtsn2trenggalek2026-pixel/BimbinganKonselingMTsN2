@@ -71,7 +71,7 @@
       code = "network";
     } else if (code === "PGRST205" || /relation .* does not exist|Could not find the table/i.test(msg)) {
       code = "missing_table";
-    } else if (code === "23505") {
+    } else if (code === "23505" || /sudah terdaftar/i.test(msg)) {
       code = "duplicate";
     } else if (code === "23503") {
       code = "foreign_key";
@@ -143,6 +143,14 @@
       row.no_urut = no === "" ? null : Number(no);
     }
     if ("aktif" in p) row.aktif = toBool(p.aktif);
+    if ("angkatan" in p) {
+      var ang = text(p.angkatan);
+      row.angkatan = ang === "" ? null : Number(ang);
+    }
+    if ("tingkat" in p) {
+      var tk = text(p.tingkat);
+      row.tingkat = tk === "" ? null : Number(tk);
+    }
     return row;
   }
 
@@ -202,13 +210,14 @@
       library_missing: "Pustaka Supabase gagal dimuat. Pastikan file vendor/supabase.js tersedia.",
       missing_table: "Tabel database belum dibuat. Jalankan file supabase/schema.sql di SQL Editor Supabase.",
       forbidden: "Akses ditolak. Pastikan akun Anda aktif dan sudah login.",
-      duplicate: "Data sudah ada (duplikat nama dan kelas).",
+      duplicate: "Data sudah ada. Untuk akun, email tersebut sudah terdaftar.",
       foreign_key: "Data terkait tidak ditemukan. Muat ulang halaman lalu coba lagi.",
       invalid_data: "Data tidak valid. Periksa kembali isian Anda.",
       not_found: "Data yang diminta tidak ditemukan.",
       network: "Tidak dapat terhubung ke Supabase. Periksa koneksi internet dan URL proyek.",
       invalid_password: "Password saat ini salah.",
-      weak_password: "Password baru minimal 8 karakter."
+      weak_password: "Password baru minimal 8 karakter.",
+      too_large: "Foto melebihi batas 100 KB."
     };
     if (err.code && map[err.code]) return map[err.code];
     if (err.status === 401) return map.unauthorized;
@@ -408,31 +417,54 @@
 
   /* ---------------- ABSENSI ---------------- */
 
-  API.getAttendanceByDate = async function (tanggal) {
-    var res = await db()
+  API.getAttendanceByDate = async function (tanggal, semester) {
+    var q = db()
       .from("attendance")
       .select("*")
-      .eq("tanggal", tanggal)
-      .order("id", { ascending: true });
+      .eq("tanggal", tanggal);
+    // Tampilkan data tanggal tsb. pada semester berjalan DAN catatan lama
+    // yang belum memiliki semester (kompatibilitas data sebelum migrasi).
+    if (semester && semester.id && semester.academic_year_id) {
+      q = q.or(
+        "semester_id.eq." + semester.id + ",semester_id.is.null,academic_year_id.eq." + semester.academic_year_id
+      );
+    }
+    var res = await q.order("id", { ascending: true });
     if (res.error) throw fail(res.error);
     return res.data || [];
   };
 
-  API.getAttendanceRange = async function (from, to) {
-    var res = await db()
+  API.getAttendanceRange = async function (from, to, opts) {
+    var o = opts || {};
+    var q = db()
       .from("attendance")
       .select("*")
       .gte("tanggal", from)
-      .lte("tanggal", to)
+      .lte("tanggal", to);
+    if (o.academicYearId) {
+      q = q.or("academic_year_id.eq." + o.academicYearId + ",academic_year_id.is.null");
+    }
+    if (o.semesterId) {
+      q = q.or("semester_id.eq." + o.semesterId + ",semester_id.is.null");
+    }
+    var res = await q
       .order("tanggal", { ascending: true })
       .order("id", { ascending: true });
     if (res.error) throw fail(res.error);
     return res.data || [];
   };
 
-  API.saveAttendance = async function (rows) {
+  API.saveAttendance = async function (rows, semester) {
     if (!rows || !rows.length) return [];
-    var payload = rows.map(attendanceRow).filter(function (row) {
+    var sem = semester || null;
+    var payload = rows.map(function (row) {
+      var r = attendanceRow(row);
+      if (sem && sem.id) {
+        r.semester_id = sem.id;
+        r.academic_year_id = sem.academic_year_id;
+      }
+      return r;
+    }).filter(function (row) {
       return row.student_id && row.tanggal && row.status;
     });
     if (!payload.length) return [];
@@ -511,6 +543,420 @@
     var res = await db().from("app_settings").select("*").eq("id", 1).maybeSingle();
     if (res.error) throw fail(res.error);
     return res.data || null;
+  };
+
+  /* ============================================================
+     PERAN PENGGUNA
+     ============================================================ */
+
+  API.isSuperadmin = function () {
+    return Boolean(API.user && API.user.role === "superadmin");
+  };
+
+  API.isAdmin = function () {
+    return Boolean(API.user && (API.user.role === "superadmin" || API.user.role === "admin"));
+  };
+
+  API.roleLabel = function (role) {
+    return { superadmin: "Superadmin", admin: "Admin", guru_bk: "Guru BK" }[role] || role || "-";
+  };
+
+  /* ============================================================
+     TAHUN AJARAN & SEMESTER
+     ============================================================ */
+
+  function nullableDate(value) {
+    var v = text(value);
+    return v === "" ? null : v.slice(0, 10);
+  }
+
+  API.getAcademicYears = async function (includeArchived) {
+    var q = db()
+      .from("academic_years")
+      .select("*")
+      .order("tahun_awal", { ascending: false });
+    if (!includeArchived) q = q.eq("is_aktif", true);
+    var res = await q;
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  API.getSemesters = async function (includeArchived) {
+    var q = db()
+      .from("semesters")
+      .select("*")
+      .order("academic_year_id", { ascending: true })
+      .order("urutan", { ascending: true });
+    if (!includeArchived) q = q.eq("is_aktif", true);
+    var res = await q;
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  API.saveAcademicYear = async function (year, ganjil, genap) {
+    var yearPayload = {
+      id: year && year.id ? year.id : "",
+      tahun_awal: Number((year && year.tahun_awal) || 0),
+      nama: text(year && year.nama),
+      tanggal_mulai: nullableDate(year && year.tanggal_mulai),
+      tanggal_selesai: nullableDate(year && year.tanggal_selesai),
+      catatan: text(year && year.catatan)
+    };
+    if (!yearPayload.tahun_awal) {
+      throw makeError("Tahun awal wajib diisi.", 422, "invalid_data");
+    }
+
+    function semPayload(sem, defaults) {
+      var s = sem || {};
+      return {
+        tanggal_mulai: nullableDate(s.tanggal_mulai) || defaults[0],
+        tanggal_selesai: nullableDate(s.tanggal_selesai) || defaults[1],
+        hari_efektif: Math.max(1, Math.min(366, Number(s.hari_efektif) || 90)),
+        status: s.status || "draft"
+      };
+    }
+
+    var awal = yearPayload.tahun_awal;
+    var res = await db().rpc("save_academic_year", {
+      p_year: yearPayload,
+      p_ganjil: semPayload(ganjil, [awal + "-07-15", awal + "-12-31"]),
+      p_genap: semPayload(genap, [awal + 1 + "-01-01", awal + 1 + "-06-30"])
+    });
+    if (res.error) throw fail(res.error);
+    var id = res.data;
+
+    // Tahun ajaran baru: pastikan rombel dasar VII/VIII/IX tersedia.
+    if (!yearPayload.id && id) await ensureDefaultClasses(id);
+    return id;
+  };
+
+  async function ensureDefaultClasses(academicYearId) {
+    var rows = [
+      { academic_year_id: academicYearId, tingkat: 7, nama: "VII-A" },
+      { academic_year_id: academicYearId, tingkat: 7, nama: "VII-B" },
+      { academic_year_id: academicYearId, tingkat: 8, nama: "VIII-A" },
+      { academic_year_id: academicYearId, tingkat: 8, nama: "VIII-B" },
+      { academic_year_id: academicYearId, tingkat: 9, nama: "IX-A" },
+      { academic_year_id: academicYearId, tingkat: 9, nama: "IX-B" }
+    ];
+    var res = await db()
+      .from("class_groups")
+      .upsert(rows, { onConflict: "academic_year_id,nama", ignoreDuplicates: true });
+    if (res.error) throw fail(res.error);
+  }
+
+  API.setActiveSemester = async function (id) {
+    var res = await db().rpc("set_active_semester", { p_semester_id: id });
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.finishSemester = async function (id) {
+    var res = await db().rpc("finish_semester", { p_semester_id: id });
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.archiveOldYears = async function () {
+    var res = await db().rpc("archive_old_academic_years");
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.updateSemester = async function (id, patch) {
+    var row = {};
+    if (patch) {
+      if ("tanggal_mulai" in patch) row.tanggal_mulai = nullableDate(patch.tanggal_mulai);
+      if ("tanggal_selesai" in patch) row.tanggal_selesai = nullableDate(patch.tanggal_selesai);
+      if ("hari_efektif" in patch) row.hari_efektif = Math.max(1, Math.min(366, Number(patch.hari_efektif) || 90));
+      if ("status" in patch) row.status = patch.status;
+    }
+    var res = await db().from("semesters").update(row).eq("id", id).select().maybeSingle();
+    if (res.error) throw fail(res.error);
+    if (!res.data) throw makeError("Semester tidak ditemukan.", 404, "not_found");
+    return res.data;
+  };
+
+  API.updateAcademicYear = async function (id, patch) {
+    var row = studentYearPatch(patch);
+    if (!Object.keys(row).length) return null;
+    var res = await db().from("academic_years").update(row).eq("id", id).select().maybeSingle();
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  function studentYearPatch(patch) {
+    var p = patch || {};
+    var row = {};
+    if ("nama" in p) row.nama = text(p.nama) || null;
+    if ("is_aktif" in p) row.is_aktif = toBool(p.is_aktif);
+    if ("catatan" in p) row.catatan = text(p.catatan) || null;
+    if ("tanggal_mulai" in p) row.tanggal_mulai = nullableDate(p.tanggal_mulai);
+    if ("tanggal_selesai" in p) row.tanggal_selesai = nullableDate(p.tanggal_selesai);
+    return row;
+  }
+
+  /* ============================================================
+     ROMBEL & RIWAYAT KELAS
+     ============================================================ */
+
+  API.getClassGroups = async function (academicYearId, includeArchived) {
+    var q = db().from("class_groups").select("*").order("tingkat").order("nama");
+    if (academicYearId) q = q.eq("academic_year_id", academicYearId);
+    if (!includeArchived) q = q.eq("is_aktif", true);
+    var res = await q;
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  API.saveClassGroup = async function (row) {
+    var payload = {
+      academic_year_id: text(row.academic_year_id),
+      tingkat: Number(row.tingkat),
+      nama: text(row.nama),
+      wali_kelas: text(row.wali_kelas) || null
+    };
+    if (!payload.academic_year_id || !payload.nama) {
+      throw makeError("Tahun ajaran dan nama rombel wajib diisi.", 422, "invalid_data");
+    }
+    var res = row.id
+      ? await db().from("class_groups").update(payload).eq("id", row.id).select().maybeSingle()
+      : await db().from("class_groups").insert(payload).select().maybeSingle();
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.deleteClassGroup = async function (id) {
+    var res = await db().from("class_groups").update({ is_aktif: false }).eq("id", id).select("id");
+    if (res.error) throw fail(res.error);
+    return { archived: true };
+  };
+
+  API.getStudentHistory = async function (academicYearId) {
+    var q = db().from("student_history").select("*").order("tingkat").order("kelas");
+    if (academicYearId) q = q.eq("academic_year_id", academicYearId);
+    var res = await q;
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  API.saveStudentHistory = async function (row) {
+    var payload = {
+      student_id: text(row.student_id),
+      academic_year_id: text(row.academic_year_id),
+      tingkat: Number(row.tingkat),
+      class_group_id: text(row.class_group_id) || null,
+      kelas: text(row.kelas),
+      status: text(row.status) || "aktif"
+    };
+    var res = await db()
+      .from("student_history")
+      .upsert(payload, { onConflict: "student_id,academic_year_id", ignoreDuplicates: false })
+      .select()
+      .maybeSingle();
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.promoteStudents = async function (fromYear, toYear, luluskanKelas9) {
+    var res = await db().rpc("promote_students", {
+      p_from_year: fromYear,
+      p_to_year: toYear,
+      p_luluskan_kelas_sembilan: Boolean(luluskanKelas9)
+    });
+    if (res.error) throw fail(res.error);
+    return res.data || {};
+  };
+
+  API.createStudentsForYear = async function (students, academicYearId, tingkat, kelas, classGroupId) {
+    if (!students || !students.length) return { created: 0 };
+    var ids = [];
+    for (var i = 0; i < students.length; i++) {
+      var s = students[i];
+      var payload = newStudent({
+        nama: s.nama,
+        jenis_kelamin: s.jenis_kelamin,
+        kelas: kelas,
+        nis: s.nis || null,
+        no_urut: s.no_urut || null,
+        aktif: true
+      });
+      var res = await db()
+        .from("students")
+        .upsert(payload, { onConflict: "nama,kelas", ignoreDuplicates: false })
+        .select("id")
+        .maybeSingle();
+      if (res.error) throw fail(res.error);
+      if (res.data) ids.push(res.data.id);
+    }
+
+    if (ids.length) {
+      var rows = ids.map(function (id) {
+        return {
+          student_id: id,
+          academic_year_id: academicYearId,
+          tingkat: tingkat,
+          class_group_id: classGroupId || null,
+          kelas: kelas,
+          status: "aktif"
+        };
+      });
+      var hres = await db()
+        .from("student_history")
+        .upsert(rows, { onConflict: "student_id,academic_year_id", ignoreDuplicates: false });
+      if (hres.error) throw fail(hres.error);
+    }
+    return { created: ids.length };
+  };
+
+  /* ============================================================
+     KELULUSAN
+     ============================================================ */
+
+  API.getGraduations = async function (academicYearId, includeArchived) {
+    var q = db().from("graduations").select("*").order("student_id");
+    if (academicYearId) q = q.eq("academic_year_id", academicYearId);
+    if (!includeArchived) q = q.eq("is_aktif", true);
+    var res = await q;
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  API.saveGraduation = async function (row) {
+    var payload = {
+      student_id: text(row.student_id),
+      academic_year_id: text(row.academic_year_id),
+      status: text(row.status) || "lulus",
+      sekolah_lanjutan: text(row.sekolah_lanjutan) || null,
+      jenis_sekolah: text(row.jenis_sekolah) || null,
+      npsn: text(row.npsn) || null,
+      kota_sekolah: text(row.kota_sekolah) || null,
+      jalur: text(row.jalur) || null,
+      tanggal_lulus: nullableDate(row.tanggal_lulus),
+      catatan: text(row.catatan) || null
+    };
+    if (!payload.student_id || !payload.academic_year_id) {
+      throw makeError("Siswa dan tahun ajaran wajib diisi.", 422, "invalid_data");
+    }
+    var res = await db()
+      .from("graduations")
+      .upsert(payload, { onConflict: "student_id,academic_year_id", ignoreDuplicates: false })
+      .select()
+      .maybeSingle();
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.deleteGraduation = async function (id) {
+    var res = await db().from("graduations").delete().eq("id", id).select("id");
+    if (res.error) throw fail(res.error);
+    return { deleted: true };
+  };
+
+  API.getGraduationSummary = async function (academicYearId) {
+    var res = await db().rpc("graduation_summary", { p_academic_year_id: academicYearId });
+    if (res.error) throw fail(res.error);
+    return res.data || {};
+  };
+
+  /* ============================================================
+     FOTO SISWA (maks. 100 KB, dikompres di browser)
+     ============================================================ */
+
+  API.uploadStudentPhoto = async function (studentId, blob, ext) {
+    if (!blob) throw makeError("File foto kosong.", 422, "invalid_data");
+    if (blob.size > 102400) {
+      throw makeError("Foto melebihi 100 KB setelah dikompres.", 422, "too_large");
+    }
+    var bucket = "siswa-foto";
+    var path = studentId + "/" + Date.now() + "." + (ext || "jpg");
+    var sb = db();
+    var up = await sb.storage.from(bucket).upload(path, blob, {
+      contentType: blob.type || "image/jpeg",
+      upsert: true,
+      cacheControl: "3600"
+    });
+    if (up.error) throw fail(up.error);
+
+    var pub = sb.storage.from(bucket).getPublicUrl(path);
+    var url = pub && pub.data ? pub.data.publicUrl : null;
+
+    var patch = {
+      foto_bucket: bucket,
+      foto_path: path,
+      foto_ukuran: blob.size,
+      foto_uploaded_at: new Date().toISOString()
+    };
+    var res = await sb.from("students").update(patch).eq("id", studentId).select().maybeSingle();
+    if (res.error) throw fail(res.error);
+
+    API.photoUrlCache[path] = url;
+    return { path: path, url: url, size: blob.size, student: res.data };
+  };
+
+  API.photoUrlCache = {};
+
+  API.getPhotoUrl = function (student) {
+    if (!student || !student.foto_path) return "";
+    if (API.photoUrlCache[student.foto_path]) return API.photoUrlCache[student.foto_path];
+    try {
+      var pub = db().storage.from(student.foto_bucket || "siswa-foto").getPublicUrl(student.foto_path);
+      var url = pub && pub.data ? pub.data.publicUrl : "";
+      API.photoUrlCache[student.foto_path] = url;
+      return url;
+    } catch (e) {
+      return "";
+    }
+  };
+
+  API.deleteStudentPhoto = async function (student) {
+    if (!student || !student.foto_path) return;
+    var sb = db();
+    try { await sb.storage.from(student.foto_bucket || "siswa-foto").remove([student.foto_path]); } catch (e) { /* abaikan */ }
+    var res = await sb.from("students")
+      .update({ foto_path: null, foto_ukuran: null, foto_uploaded_at: null })
+      .eq("id", student.id);
+    if (res.error) throw fail(res.error);
+  };
+
+  /* ============================================================
+     AKUN ADMIN (superadmin)
+     ============================================================ */
+
+  API.listAccounts = async function () {
+    var res = await db().rpc("admin_list_accounts");
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  API.createAccount = async function (email, password, fullName, role) {
+    var res = await db().rpc("admin_create_account", {
+      p_email: text(email),
+      p_password: password,
+      p_full_name: text(fullName),
+      p_role: role || "admin"
+    });
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.updateAccount = async function (id, patch) {
+    var p = patch || {};
+    var res = await db().rpc("admin_update_account", {
+      p_id: id,
+      p_full_name: "full_name" in p ? text(p.full_name) : null,
+      p_role: "role" in p ? p.role : null,
+      p_aktif: "aktif" in p ? Boolean(p.aktif) : null,
+      p_password: "password" in p ? p.password : null
+    });
+    if (res.error) throw fail(res.error);
+    return { updated: true };
+  };
+
+  API.deleteAccount = async function (id) {
+    var res = await db().rpc("admin_delete_account", { p_id: id });
+    if (res.error) throw fail(res.error);
+    return { deleted: true };
   };
 
   API.saveSettings = async function (patch) {

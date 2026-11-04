@@ -121,17 +121,25 @@
         </div>
       </div>
 
+      <div id="sidebar-context" class="sidebar-context hidden"></div>
+
       <nav class="sidebar-nav">
         <span class="nav-section">Menu Utama</span>
         <a href="#/dashboard" class="nav-link" data-route="dashboard"><span class="nav-icon" data-icon="dashboard"></span><span>Dasbor</span></a>
         <a href="#/absensi" class="nav-link" data-route="absensi"><span class="nav-icon" data-icon="calendarCheck"></span><span>Absensi</span></a>
         <a href="#/rekap" class="nav-link" data-route="rekap"><span class="nav-icon" data-icon="chart"></span><span>Rekap Absensi</span></a>
 
+        <span class="nav-section nav-admin">Akademik</span>
+        <a href="#/tahun" class="nav-link nav-admin" data-route="tahun" data-role-menu="tahun"><span class="nav-icon" data-icon="calendar"></span><span>Tahun &amp; Semester</span></a>
+        <a href="#/tingkat" class="nav-link nav-admin" data-route="tingkat" data-role-menu="tingkat"><span class="nav-icon" data-icon="book"></span><span>Kelas VII · VIII · IX</span></a>
+        <a href="#/lulus" class="nav-link nav-admin" data-route="lulus" data-role-menu="lulus"><span class="nav-icon" data-icon="clipboard"></span><span>Kelulusan &amp; Lanjutan</span></a>
+
         <span class="nav-section">Administrasi</span>
         <a href="#/laporan" class="nav-link" data-route="laporan"><span class="nav-icon" data-icon="file"></span><span>Laporan Kerja</span></a>
         <a href="#/siswa" class="nav-link" data-route="siswa"><span class="nav-icon" data-icon="users"></span><span>Data Siswa</span></a>
 
         <span class="nav-section">Sistem</span>
+        <a href="#/akun" class="nav-link" data-route="akun" data-role-menu="akun"><span class="nav-icon" data-icon="lock"></span><span>Akun Admin</span></a>
         <a href="#/pengaturan" class="nav-link" data-route="pengaturan"><span class="nav-icon" data-icon="settings"></span><span>Pengaturan</span></a>
       </nav>
 
@@ -141,6 +149,7 @@
           <div>
             <strong id="sidebar-name">Guru BK</strong>
             <small id="sidebar-email">memuat…</small>
+            <span class="badge badge-neutral" id="sidebar-role">Guru BK</span>
           </div>
         </div>
       </div>
@@ -205,9 +214,13 @@
   <script src="assets/js/exporters.js"></script>
   <script src="assets/js/dashboard.js"></script>
   <script src="assets/js/attendance.js"></script>
-  <script src="assets/js/recap.js"></script>
+  <script src="assets/js/attendance-recap.js"></script>
+  <script src="assets/js/years.js"></script>
+  <script src="assets/js/levels.js"></script>
+  <script src="assets/js/graduation.js"></script>
   <script src="assets/js/reports.js"></script>
   <script src="assets/js/students.js"></script>
+  <script src="assets/js/accounts.js"></script>
   <script src="assets/js/settings.js"></script>
   <script src="assets/js/app.js"></script>
 

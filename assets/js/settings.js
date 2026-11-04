@@ -68,8 +68,13 @@
             '<div class="card-head"><div><h3>Akun</h3><p>Akun yang sedang digunakan.</p></div></div>' +
             '<div class="account-card"><span class="avatar avatar-lg">' + U.escape(U.initials((window.APP_STATE.profile && window.APP_STATE.profile.full_name) || email)) + "</span>" +
               '<div><strong>' + U.escape((window.APP_STATE.profile && window.APP_STATE.profile.full_name) || "Guru BK") + "</strong><small>" + U.escape(email) + "</small></div></div>" +
-            '<div class="account-meta"><div><span>ID Pengguna</span><code>' + U.escape(user.id || "-") + "</code></div>" +
-              '<div><span>Total Siswa Aktif</span><strong>' + students.length + " siswa</strong></div></div>" +
+            '<div class="account-meta"><div><span>Peran</span><strong>' + U.escape(API.roleLabel(user.role)) + "</strong></div>" +
+              '<div><span>Total Siswa Aktif</span><strong>' + students.length + " siswa</strong></div>" +
+              '<div><span>Semester berjalan</span><strong>' +
+                (window.APP_STATE.activeSemester && window.APP_STATE.activeYear
+                  ? U.escape(U.SEMESTER_LABEL[window.APP_STATE.activeSemester.jenis] + " · " + U.tahunAjaranLabel(window.APP_STATE.activeYear))
+                  : "Belum diatur") + "</strong></div>" +
+              '<div><span>Data akademik</span><strong>' + (window.APP_STATE.academicYears || []).length + " tahun ajaran</strong></div></div>" +
             '<button type="button" class="btn btn-secondary btn-block" id="set-password">' + U.icon("lock", 17) + "<span>Ganti Password</span></button>" +
             '<button type="button" class="btn btn-danger btn-block" id="set-logout">' + U.icon("logout", 17) + "<span>Keluar dari Akun</span></button>" +
           "</div>" +
@@ -80,6 +85,15 @@
               '<button type="button" class="btn btn-secondary btn-block" id="set-export">' + U.icon("download", 17) + "<span>Ekspor Data Siswa (Excel)</span></button>" +
             "</div>" +
           "</div>" +
+          (API.isAdmin() ? '<div class="card">' +
+            '<div class="card-head"><div><h3>Pemeliharaan Data</h3><p>Data akademik tetap tersimpan sampai 5 tahun.</p></div></div>' +
+            '<div class="settings-actions">' +
+              '<button type="button" class="btn btn-secondary btn-block" id="set-archive">' + U.icon("clock", 17) + "<span>Arsipkan Tahun Ajaran &gt; 5 Tahun</span></button>" +
+              '<a class="btn btn-secondary btn-block" href="#/tahun">' + U.icon("calendar", 17) + "<span>Kelola Tahun Ajaran &amp; Semester</span></a>" +
+              (API.isSuperadmin() ? '<a class="btn btn-secondary btn-block" href="#/akun">' + U.icon("lock", 17) + "<span>Kelola Akun Admin</span></a>" : "") +
+            "</div>" +
+            '<p class="form-hint">Arsip hanya menonaktifkan tampilan (is_aktif = false). Tidak ada data yang dihapus.</p>' +
+          "</div>" : "") +
           '<div class="card">' +
             '<div class="card-head"><div><h3>Tentang Aplikasi</h3><p>Informasi teknis.</p></div></div>' +
             '<div class="about-list">' +
@@ -180,6 +194,20 @@
         U.buttonLoading(btn, false);
       }
     });
+    var archiveBtn = U.$("#set-archive", c);
+    if (archiveBtn) {
+      archiveBtn.addEventListener("click", async function () {
+        var ok = await U.confirm("Arsipkan tahun ajaran yang lebih tua dari 5 tahun? Data tidak dihapus, hanya dinonaktifkan.", {
+          title: "Arsipkan Data Lama", confirmLabel: "Ya, Arsipkan", danger: true
+        });
+        if (!ok) return;
+        try {
+          var n = await API.archiveOldYears();
+          U.toast((n || 0) + " tahun ajaran diarsipkan.", "success");
+          await App.refreshAcademic();
+        } catch (err) { U.toast(API.errorMessage(err), "error"); }
+      });
+    }
     U.$("#set-logout", c).addEventListener("click", function () { App.logout(); });
     U.$("#set-password", c).addEventListener("click", openPasswordModal);
     U.$("#set-template", c).addEventListener("click", function () { EX.studentsTemplate(); });

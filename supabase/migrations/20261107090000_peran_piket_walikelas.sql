@@ -157,7 +157,7 @@ as $$
          s.nama,
          s.nis,
          s.jenis_kelamin::text,
-         coalesce(h.kelas, s.kelas),
+         coalesce(h.kelas, s.kelas) as kelas,
          coalesce(h.tingkat, s.tingkat),
          coalesce(a.status, 'masuk'),
          a.keterangan,
@@ -182,7 +182,7 @@ as $$
             and w.class_group_id = h.class_group_id
        )
      )
-   order by kelas, s.nama;
+   order by coalesce(h.kelas, s.kelas), s.nama;
 $$;
 
 -- ------------------------------------------------------------

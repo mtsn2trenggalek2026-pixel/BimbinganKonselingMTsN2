@@ -94,7 +94,7 @@ returns table (
 language sql stable security definer set search_path = public
 as $$
   select s.id, s.nama, s.nis, s.jenis_kelamin::text,
-         coalesce(h.kelas, s.kelas), coalesce(h.tingkat, s.tingkat),
+         coalesce(h.kelas, s.kelas) as kelas, coalesce(h.tingkat, s.tingkat),
          coalesce(a.status, 'masuk'), a.keterangan, a.catatan,
          (a.id is not null)
     from public.students s
@@ -109,7 +109,7 @@ as $$
        or exists (select 1 from public.wali_kelas w
                    where w.user_id = auth.uid() and w.class_group_id = h.class_group_id)
      )
-   order by kelas, s.nama;
+   order by coalesce(h.kelas, s.kelas), s.nama;
 $$;
 
 -- 5. RLS

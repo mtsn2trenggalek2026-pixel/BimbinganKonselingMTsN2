@@ -41,12 +41,17 @@
    Jalankan file itu di SQL Editor SETELAH schema.sql
    (atau lewat integrasi GitHub Supabase agar otomatis).
 
-7. Buka "Authentication" > "Users" > "Add user" >
-   "Create new user":
-   - Email    : (email guru BK)
-   - Password : (minimal 8 karakter)
-   - Auto Confirm User : AKTIF
-   - Create user
+7. AKUN SUPERADMIN
+   Migrasi akademik membuat akun bawaan otomatis:
+     Email    : superadmin@bk.local
+     Password : BkMtsn2!2026
+     Peran    : superadmin
+   Segera ganti password setelah login pertama.
+   Bila akun bawaan tidak muncul, jalankan file
+   "setup-superadmin.sql" lewat SQL Editor.
+
+   Akun guru BK lainnya dibuat dari aplikasi:
+   menu "Akun Admin" > "Akun Baru".
 
 8. Buka aplikasi lewat start.bat, lalu login.
 

@@ -12,6 +12,9 @@
 --   7. Foto siswa (storage_bucket, maksimal 100 KB)
 --   8. Pengaman data: baris akademik berlaku 5 tahun lalu
 --      diarsipkan (is_aktif = false), tidak dihapus.
+--   9. Akun superadmin bawaan bila belum ada akun sama sekali:
+--        superadmin@bk.local  /  BkMtsn2!2026  (segera ganti
+--        password setelah login pertama).
 --
 --  File aman dijalankan ulang (idempotent).
 -- ============================================================
@@ -67,16 +70,64 @@ as $$
   select public.current_role() = 'superadmin';
 $$;
 
--- Jadikan pengguna pertama (atau akun tanpa role) superadmin bila belum ada.
+-- Pastikan selalu ada akun superadmin. Perilaku:
+--   1. Bila sudah ada superadmin  -> tidak diubah.
+--   2. Bila belum ada & sudah ada akun lain
+--      -> akun paling lama dijadikan superadmin.
+--   3. Bila belum ada superadmin DAN belum ada akun sama sekali
+--      -> dibuat akun bawaan  superadmin@bk.local / BkMtsn2!2026
+--         (segera ganti password setelah login pertama).
 do $$
+declare
+  v_email    text := 'superadmin@bk.local';
+  v_password text := 'BkMtsn2!2026';
+  v_nama     text := 'Super Admin BK';
+  v_id       uuid;
 begin
-  if not exists (select 1 from public.profiles where role = 'superadmin') then
-    update public.profiles
-       set role = 'superadmin'
-     where id = (
-       select id from public.profiles order by created_at asc, id asc limit 1
-     );
+  if exists (select 1 from public.profiles where role = 'superadmin') then
+    return;
   end if;
+
+  -- 2. Jadikan akun paling lama sebagai superadmin.
+  select id into v_id from public.profiles order by created_at asc, id asc limit 1;
+  if v_id is not null then
+    update public.profiles set role = 'superadmin', aktif = true where id = v_id;
+    return;
+  end if;
+
+  -- 3. Belum ada akun sama sekali: buat akun superadmin bawaan.
+  v_id := gen_random_uuid();
+
+  insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password,
+    email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at, confirmation_token, recovery_token,
+    email_change_token_new, email_change
+  ) values (
+    '00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated',
+    v_email, crypt(v_password, gen_salt('bf')),
+    now(),
+    jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
+    jsonb_build_object('full_name', v_nama),
+    now(), now(), '', '', '', ''
+  );
+
+  insert into auth.identities (
+    id, user_id, provider_id, provider, identity_data,
+    last_sign_in_at, created_at, updated_at
+  ) values (
+    gen_random_uuid(), v_id, v_id::text, 'email',
+    jsonb_build_object('sub', v_id::text, 'email', v_email, 'email_verified', true),
+    now(), now(), now()
+  );
+
+  insert into public.profiles (id, email, full_name, role, aktif)
+  values (v_id, v_email, v_nama, 'superadmin', true)
+  on conflict (id) do update set
+    email = excluded.email, full_name = excluded.full_name,
+    role = 'superadmin', aktif = true;
+
+  raise notice 'Akun superadmin bawaan dibuat: % / %', v_email, v_password;
 end;
 $$;
 

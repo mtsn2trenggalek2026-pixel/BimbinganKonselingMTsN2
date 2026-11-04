@@ -33,13 +33,24 @@ Nilai di atas sudah terisi. Ganti hanya bila memakai proyek
 Supabase lain. JANGAN memakai service_role/secret key.
 
 
-LANGKAH 3 — BUAT AKUN GURU BK
------------------------------
-1. Supabase Dashboard > Authentication > Users > Add user.
-2. Isi email dan password (minimal 8 karakter).
-3. Aktifkan "Auto Confirm User".
-4. Klik "Create user".
-   Profil guru BK dibuat otomatis.
+LANGKAH 3 — AKUN SUPERADMIN (LOGIN PERTAMA)
+------------------------------------------
+AKUN BAWAAN (dibuat otomatis oleh migrasi):
+
+  Email    : superadmin@bk.local
+  Password : BkMtsn2!2026
+  Peran    : Superadmin
+
+Bila akun bawaan belum muncul (mis. sudah ada akun lain),
+jalankan file "supabase\setup-superadmin.sql" lewat SQL Editor.
+
+SETELAH LOGIN PERTAMA:
+  1. Menu Pengaturan > Akun > "Ganti Password".
+  2. Menu Akun Admin > "Akun Baru" untuk membuat akun
+     admin / superadmin / guru BK lainnya.
+
+Akun guru BK lainnya juga bisa dibuat langsung dari aplikasi
+(menu Akun Admin), tidak perlu lagi lewat dashboard Supabase.
 
 
 LANGKAH 4 — BUKA APLIKASI

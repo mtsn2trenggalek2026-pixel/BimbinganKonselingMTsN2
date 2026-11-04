@@ -100,9 +100,21 @@ File migrasi tersebut menambah:
 > `supabase/migrations/` dijalankan otomatis saat push — langkah manual ini tidak
 > diperlukan.
 
-Setelah migrasi, akun pertama (atau akun yang sudah ada) otomatis menjadi
-**superadmin** agar dapat membuat akun lain. Menu **Akun Admin** hanya terlihat
-untuk superadmin.
+Setelah migrasi, akun superadmin otomatis tersedia:
+
+| Email | Password | Peran |
+|---|---|---|
+| `superadmin@bk.local` | `BkMtsn2!2026` | superadmin |
+
+Aturannya:
+- Jika sudah ada superadmin → tidak ada perubahan.
+- Jika belum ada akun sama sekali → akun bawaan di atas **dibuat otomatis** oleh migrasi.
+- Jika sudah ada akun lain tetapi belum ada superadmin → akun paling lama dijadikan superadmin.
+- Ingin memaksa/membuat ulang akun bawaan? Jalankan **`supabase/setup-superadmin.sql`** di SQL Editor.
+
+> **Segera ganti password bawaan** setelah login pertama
+> (Pengaturan → Akun → Ganti Password). Menu **Akun Admin** hanya terlihat untuk
+> superadmin.
 
 ### Langkah 3 — Ambil URL dan kunci
 Buka **Project Settings → API**:

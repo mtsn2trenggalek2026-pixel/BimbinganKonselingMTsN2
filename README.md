@@ -500,6 +500,13 @@ select * from public.work_reports;
 
 lalu unduh hasilnya sebagai CSV.
 
+### Menghapus semua data (reset)
+Jalankan **`supabase/reset-semua-data.sql`** di **SQL Editor**. File ini menghapus
+semua siswa, absensi, laporan kerja, kelulusan, riwayat kelas, rombel, semester,
+dan tahun ajaran (satu transaksi). **Akun login dan pengaturan madrasah tidak
+dihapus.** File berakhir dengan query pemeriksaan — semua angka harus `0`.
+Setelah itu buat kembali tahun ajaran dari menu **Tahun & Semester**.
+
 ### Pemulihan
 1. Buka **SQL Editor**.
 2. Jalankan `supabase/schema.sql` (membuat ulang struktur yang belum ada).

@@ -142,6 +142,15 @@ JIKA ADA MASALAH
   -> Gunakan Chrome/Edge terbaru, muat ulang dengan Ctrl + F5.
 
 
+MENGHAPUS SEMUA DATA (RESET)
+----------------------------
+Jalankan supabase\reset-semua-data.sql di SQL Editor Supabase.
+Menghapus: siswa, absensi, laporan kerja, kelulusan, riwayat
+kelas, rombel, semester, tahun ajaran, dan foto siswa.
+TIDAK menghapus: akun login dan pengaturan madrasah.
+Permanen - buat cadangan lebih dahulu.
+
+
 FILE PENTING
 ------------
 - supabase\schema.sql    : tabel + RLS + pengaturan (tanpa data siswa).

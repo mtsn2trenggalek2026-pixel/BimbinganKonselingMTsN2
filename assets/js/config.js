@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    Konfigurasi aplikasi BK MTsN 2 Trenggalek
    ------------------------------------------------------------
    Aplikasi memakai Supabase (PostgreSQL + Auth).
@@ -15,7 +15,7 @@
 window.BK_CONFIG = {
   SUPABASE_URL: "https://mhjvebnxsutwbudjwmud.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_0QoQPOUArrXnj0mArDr2uQ_pPxFsasw",
-  DB_LABEL: "PostgreSQL · Supabase (mhjvebnxsutwbudjwmud)",
+  DB_LABEL: "PostgreSQL Â· Supabase (mhjvebnxsutwbudjwmud)",
 
   APP_NAME: "BK MTsN 2 Trenggalek",
   SCHOOL_NAME: "MTsN 2 Trenggalek",
@@ -28,5 +28,5 @@ window.BK_CONFIG = {
   DEFAULT_GURU_NIP: "NIP. 197902092025212006",
   DEFAULT_GURU_JABATAN: "Guru Bimbingan Konseling",
 
-  VERSION: "4.0.1"
+  VERSION: "4.1.0"
 };

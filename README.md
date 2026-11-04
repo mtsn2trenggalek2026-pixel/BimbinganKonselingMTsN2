@@ -315,12 +315,21 @@ Tidak ada akun bawaan di dalam kode.
 - Ekspor **Excel** dan **PDF** (PDF landscape).
 
 ### Laporan Kerja
-- Identitas pegawai: Nama, NIP, Level Jabatan, Pangkat, Golongan Ruang,
-  Tugas Tambahan, Bulan.
-- Tabel kegiatan: No (otomatis), Kegiatan, Pekerjaan (boleh multi-baris), Tanggal.
+- **Mengikuti format laporan kerja Oktober 2026** (A4 portrait):
+  1. Judul **Laporan Kerja** rata tengah, tebal.
+  2. Tabel identitas 4 kolom: `Nama | NIP`, `Level Jabatan | Pangkat`,
+     `Golongan Ruang | Tugas Tambahan`, `Bulan`.
+  3. Tabel kegiatan 4 kolom: **No · Kegiatan · Pekerjaan · Tanggal**.
+  4. Blok tanda tangan tanpa garis: Kepala Madrasah (kiri) dan Guru BK (kanan),
+     diakhiri `NIP. …`.
+- **1 hari bisa banyak kegiatan**, dan **tiap kegiatan bisa banyak pekerjaan**:
+  - editor dikelompokkan per **hari** ("Tambah Hari"),
+  - di dalam hari ada tombol **Kegiatan** dan **Tambah pekerjaan**,
+  - saat disimpan, semua kegiatan dalam satu hari digabung menjadi satu baris
+    laporan (nomor mengikuti urutan hari) — sama seperti contoh,
+  - teks multi-baris tetap turun ke baris berikutnya di dalam sel.
+- Tombol **Pratinjau** menampilkan bentuk tabel sebelum diunduh.
 - Simpan, edit, hapus, lalu unduh **Word (.docx)** atau **PDF**.
-- Format mengikuti contoh: A4 portrait, tabel identitas, tabel kegiatan 4 kolom,
-  dan blok tanda tangan Kepala Madrasah + Guru BK.
 
 ### Data Siswa
 - Tambah/edit/nonaktifkan siswa.
@@ -340,6 +349,12 @@ Tidak ada akun bawaan di dalam kode.
 - Tahun ajaran lama dapat diarsipkan (nonaktif) dan tetap dibuka lewat
   **Tampilkan arsip**. Tombol **Arsipkan > 5 tahun** menjalankan
   `archive_old_academic_years()` — tidak ada data yang dihapus.
+
+### Tampilan terang / gelap
+- Tombol matahari/bulan di kanan atas (atau menu akun → **Ganti Tema**).
+- Pilihan disimpan di browser (`localStorage`), diterapkan sebelum halaman
+  digambar agar tidak berkedip. Jika belum pernah memilih, tema mengikuti
+  pengaturan sistem operasi.
 
 ### Kelas VII · VIII · IX (menu *Kelas VII · VIII · IX*)
 - Kartu ringkas jumlah siswa & rombel per tingkat.

@@ -362,118 +362,187 @@
     };
   };
 
+  /* ============================================================
+     LAPORAN KERJA — FORMAT SESUAI LAPORAN KERJA OKTOBER 2026
+     ------------------------------------------------------------
+     Struktur:
+       1. Judul "Laporan Kerja" (tengah, tebal)
+       2. Tabel identitas 4 kolom: label | isi | label | isi
+       3. Tabel kegiatan: No | Kegiatan | Pekerjaan | Tanggal
+          - satu baris = satu hari
+          - satu sel Kegiatan boleh berisi >1 kegiatan (baris baru)
+          - satu sel Pekerjaan boleh berisi >1 pekerjaan (baris baru)
+       4. Blok tanda tangan tanpa garis: Kepala (kiri) & Guru BK (kanan)
+     ============================================================ */
+
+  /* Susun baris tabel dari struktur hari (meta.days) atau dari items*.
+     Satu baris laporan = satu hari. */
+  function reportRows(report, items, meta) {
+    var days = meta && meta.days;
+    var rows = [];
+
+    if (days && days.length) {
+      days.forEach(function (day) {
+        var kegiatanLines = [];
+        var workLines = [];
+        (day.activities || []).forEach(function (act) {
+          var k = String(act.kegiatan || "").trim();
+          var works = (act.works || []).map(function (w) { return String(w || "").trim(); }).filter(Boolean);
+          if (!k && !works.length) return;
+          if (k) kegiatanLines.push(k);
+          works.forEach(function (w) { workLines.push(w); });
+        });
+        rows.push({ tanggal: day.tanggal, kegiatanLines: kegiatanLines, workLines: workLines });
+      });
+      if (rows.length) return rows;
+    }
+
+    // Fallback: items lama (satu item = satu kegiatan + pekerjaan).
+    var byDate = {};
+    var order = [];
+    (items || []).forEach(function (it) {
+      var t = it.tanggal || "";
+      if (!byDate[t]) { byDate[t] = { tanggal: t, kegiatanLines: [], workLines: [] }; order.push(t); }
+      if (String(it.kegiatan || "").trim()) byDate[t].kegiatanLines.push(String(it.kegiatan).trim());
+      splitLines(it.pekerjaan).forEach(function (l) {
+        if (String(l).trim()) byDate[t].workLines.push(String(l).trim());
+      });
+    });
+    return order.sort().map(function (t) { return byDate[t]; });
+  }
+
+  /* ---------------- WORD ---------------- */
   EX.reportWord = async function (report, items, meta) {
     meta = meta || {};
     var D = docxLib();
     var bulanLabel = report.bulan ? U.monthLabelFromDate(report.bulan) : "-";
+    var rows = reportRows(report, items, meta);
 
-    var identityRows = [
-      ["Nama", report.nama || ""],
-      ["NIP", cleanNip(report.nip || "")],
-      ["Level Jabatan", report.level_jabatan || ""],
-      ["Pangkat", report.pangkat || ""],
-      ["Golongan Ruang", report.golongan_ruang || ""],
-      ["Tugas Tambahan", report.tugas_tambahan || ""],
-      ["Bulan", bulanLabel]
-    ].map(function (row) {
-      return new D.TableRow({
-        children: [
-          new D.TableCell({
-            width: { size: 4035, type: D.WidthType.DXA },
-            verticalAlign: D.VerticalAlign.CENTER,
-            children: [docxParagraph(row[0], { size: 24 })]
-          }),
-          new D.TableCell({
-            width: { size: 6114, type: D.WidthType.DXA },
-            verticalAlign: D.VerticalAlign.CENTER,
-            children: [docxParagraph(row[1], { size: 24 })]
-          })
-        ]
+    var NONE_BORDER = {
+      style: D.BorderStyle.NONE, size: 0, color: "FFFFFF"
+    };
+    var NO_BORDERS = {
+      top: NONE_BORDER, bottom: NONE_BORDER, left: NONE_BORDER, right: NONE_BORDER,
+      insideHorizontal: NONE_BORDER, insideVertical: NONE_BORDER
+    };
+
+    function cellText(text, opts) {
+      opts = opts || {};
+      return new D.TableCell({
+        verticalAlign: opts.vAlign || D.VerticalAlign.CENTER,
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        children: [docxParagraph(text == null ? " " : String(text), {
+          size: opts.size || 24,
+          bold: Boolean(opts.bold),
+          align: opts.align || D.AlignmentType.LEFT
+        })]
       });
+    }
+
+    function cellLines(lines, opts) {
+      opts = opts || {};
+      var arr = (lines && lines.length) ? lines : [""];
+      return new D.TableCell({
+        verticalAlign: opts.vAlign || D.VerticalAlign.TOP,
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        children: arr.map(function (line) {
+          return docxParagraph(line, { size: opts.size || 24, bold: Boolean(opts.bold), align: opts.align || D.AlignmentType.LEFT });
+        })
+      });
+    }
+
+    /* 1. Judul */
+    var title = new D.Paragraph({
+      alignment: D.AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [new D.TextRun({ text: "Laporan Kerja", font: "Arial", size: 32, bold: true })]
     });
+
+    /* 2. Tabel identitas: label | isi | label | isi */
+    function identRow(l1, v1, l2, v2) {
+      return new D.TableRow({
+        children: [cellText(l1, { bold: true }), cellText(v1), cellText(l2, { bold: true }), cellText(v2)]
+      });
+    }
 
     var identityTable = new D.Table({
-      width: { size: 10149, type: D.WidthType.DXA },
-      columnWidths: [4035, 6114],
+      width: { size: 9926, type: D.WidthType.DXA },
+      columnWidths: [2100, 2863, 2100, 2863],
       borders: DOCX_BORDER(),
-      rows: identityRows
-    });
-
-    var headerRow = new D.TableRow({
-      tableHeader: true,
-      children: [
-        new D.TableCell({ width: { size: 704, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.CENTER, children: [docxParagraph("No", { align: D.AlignmentType.CENTER, bold: true, size: 28 })] }),
-        new D.TableCell({ width: { size: 3280, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.CENTER, children: [docxParagraph("Kegiatan", { align: D.AlignmentType.CENTER, bold: true, size: 28 })] }),
-        new D.TableCell({ width: { size: 3974, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.CENTER, children: [docxParagraph("Pekerjaan", { align: D.AlignmentType.CENTER, bold: true, size: 28 })] }),
-        new D.TableCell({ width: { size: 1818, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.CENTER, children: [docxParagraph("Tanggal", { align: D.AlignmentType.CENTER, bold: true, size: 28 })] })
+      rows: [
+        identRow("Nama", report.nama || "", "NIP", cleanNip(report.nip || "")),
+        identRow("Level Jabatan", report.level_jabatan || "", "Pangkat", report.pangkat || ""),
+        identRow("Golongan Ruang", report.golongan_ruang || "", "Tugas Tambahan", report.tugas_tambahan || ""),
+        new D.TableRow({
+          children: [
+            cellText("Bulan", { bold: true }), cellText(bulanLabel),
+            new D.TableCell({
+              columnSpan: 2,
+              verticalAlign: D.VerticalAlign.CENTER,
+              margins: { top: 60, bottom: 60, left: 100, right: 100 },
+              children: [docxParagraph(" ", { size: 24 })]
+            })
+          ]
+        })
       ]
     });
 
-    var itemRows = (items || []).map(function (item, i) {
+    /* 3. Tabel kegiatan: No | Kegiatan | Pekerjaan | Tanggal */
+    var headerRow = new D.TableRow({
+      tableHeader: true,
+      children: [
+        cellText("No", { bold: true, align: D.AlignmentType.CENTER }),
+        cellText("Kegiatan", { bold: true, align: D.AlignmentType.CENTER }),
+        cellText("Pekerjaan", { bold: true, align: D.AlignmentType.CENTER }),
+        cellText("Tanggal", { bold: true, align: D.AlignmentType.CENTER })
+      ]
+    });
+
+    var itemRows = rows.map(function (row, i) {
       return new D.TableRow({
         children: [
-          new D.TableCell({ width: { size: 704, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.CENTER, children: [docxParagraph((item.no_urut || i + 1) + ".", { align: D.AlignmentType.LEFT, size: 24 })] }),
-          new D.TableCell({ width: { size: 3280, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.CENTER, children: docxCellParagraphs(item.kegiatan, { size: 24 }) }),
-          new D.TableCell({ width: { size: 3974, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.TOP, children: docxCellParagraphs(item.pekerjaan, { size: 24 }) }),
-          new D.TableCell({ width: { size: 1818, type: D.WidthType.DXA }, verticalAlign: D.VerticalAlign.TOP, children: [docxParagraph(U.formatTanggalPendek(item.tanggal), { size: 24 })] })
+          cellText((i + 1) + ".", { align: D.AlignmentType.LEFT }),
+          cellLines(row.kegiatanLines),
+          cellLines(row.workLines),
+          cellLines([row.tanggal ? U.formatTanggalPendek(row.tanggal) : ""], { vAlign: D.VerticalAlign.CENTER })
         ]
       });
     });
 
     var workTable = new D.Table({
-      width: { size: 9776, type: D.WidthType.DXA },
-      columnWidths: [704, 3280, 3974, 1818],
+      width: { size: 9926, type: D.WidthType.DXA },
+      columnWidths: [794, 3402, 4035, 1695],
       borders: DOCX_BORDER(),
       rows: [headerRow].concat(itemRows)
     });
 
+    /* 4. Tanda tangan (tanpa garis) */
     var ttdDate = report.tanggal_ttd ? U.formatDateID(report.tanggal_ttd) : U.formatDateID(U.todayISO());
-    var leftLines = ["Mengetahui,", "Kepala " + schoolName(), "", "", kepalaNama(), nipLabel(kepalaNip())];
-    var rightLines = [kota() + ", " + ttdDate, guruJabatan(report), "", "", guruNama(report), nipLabel(guruNip(report))];
+    var leftLines = ["", "Mengetahui", "Kepala " + schoolName(), "", "", "", kepalaNama(), nipLabel(kepalaNip())];
+    var rightLines = ["", kota() + ", " + ttdDate, guruJabatan(report), "", "", "", guruNama(report), nipLabel(guruNip(report))];
 
-    function signatureCell(lines, width) {
+    function signatureCell(lines) {
+      var nameLeft = kepalaNama();
+      var nameRight = guruNama(report);
       return new D.TableCell({
-        width: { size: width, type: D.WidthType.DXA },
+        verticalAlign: D.VerticalAlign.TOP,
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
         children: lines.map(function (line) {
-          var isName = line === kepalaNama() || line === guruNama(report);
+          var isName = line === nameLeft || line === nameRight;
           return docxParagraph(line || " ", { align: D.AlignmentType.CENTER, size: 24, bold: isName });
         })
       });
     }
 
     var signatureTable = new D.Table({
-      width: { size: 10149, type: D.WidthType.DXA },
-      columnWidths: [4035, 6114],
-      borders: {
-        top: { style: D.BorderStyle.NONE, size: 0, color: "FFFFFF" },
-        bottom: { style: D.BorderStyle.NONE, size: 0, color: "FFFFFF" },
-        left: { style: D.BorderStyle.NONE, size: 0, color: "FFFFFF" },
-        right: { style: D.BorderStyle.NONE, size: 0, color: "FFFFFF" },
-        insideHorizontal: { style: D.BorderStyle.NONE, size: 0, color: "FFFFFF" },
-        insideVertical: { style: D.BorderStyle.NONE, size: 0, color: "FFFFFF" }
-      },
-      rows: [new D.TableRow({ children: [signatureCell(leftLines, 4035), signatureCell(rightLines, 6114)] })]
+      width: { size: 9926, type: D.WidthType.DXA },
+      columnWidths: [4963, 4963],
+      borders: NO_BORDERS,
+      rows: [new D.TableRow({ children: [signatureCell(leftLines), signatureCell(rightLines)] })]
     });
 
-    var children = [
-      new D.Paragraph({
-        alignment: D.AlignmentType.CENTER,
-        spacing: { after: 180 },
-        children: [new D.TextRun({ text: "Laporan Kerja", font: "Arial", size: 32, bold: true })]
-      }),
-      identityTable,
-      new D.Paragraph({ spacing: { before: 0, after: 0 }, children: [] }),
-      workTable,
-      new D.Paragraph({ spacing: { before: 360, after: 0 }, children: [] }),
-      signatureTable
-    ];
-
     var doc = new D.Document({
-      styles: {
-        default: {
-          document: { run: { font: "Arial", size: 24 } }
-        }
-      },
+      styles: { default: { document: { run: { font: "Arial", size: 24 } } } },
       sections: [{
         properties: {
           page: {
@@ -481,7 +550,14 @@
             margin: { top: 794, right: 851, bottom: 851, left: 1134 }
           }
         },
-        children: children
+        children: [
+          title,
+          identityTable,
+          new D.Paragraph({ spacing: { before: 0, after: 0 }, children: [] }),
+          workTable,
+          new D.Paragraph({ spacing: { before: 360, after: 0 }, children: [] }),
+          signatureTable
+        ]
       }]
     });
 
@@ -489,42 +565,52 @@
     U.downloadBlob(blob, U.filename(["Laporan Kerja", bulanLabel, report.nama || "Guru BK"]) + ".docx");
   };
 
-  /* ============================================================
-     PDF — LAPORAN KERJA
-     ============================================================ */
+  /* ---------------- PDF ---------------- */
   EX.reportPdf = function (report, items, meta) {
     meta = meta || {};
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     var pageW = doc.internal.pageSize.getWidth();
     var bulanLabel = report.bulan ? U.monthLabelFromDate(report.bulan) : "-";
+    var rows = reportRows(report, items, meta);
 
     // Judul
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
+    doc.setFontSize(14);
     doc.text("Laporan Kerja", pageW / 2, 18, { align: "center" });
 
-    // Tabel identitas
+    // Tabel identitas 4 kolom
     var identity = [
-      ["Nama", report.nama || ""],
-      ["NIP", cleanNip(report.nip || "")],
-      ["Level Jabatan", report.level_jabatan || ""],
-      ["Pangkat", report.pangkat || ""],
-      ["Golongan Ruang", report.golongan_ruang || ""],
-      ["Tugas Tambahan", report.tugas_tambahan || ""],
-      ["Bulan", bulanLabel]
+      ["Nama", report.nama || "", "NIP", cleanNip(report.nip || "")],
+      ["Level Jabatan", report.level_jabatan || "", "Pangkat", report.pangkat || ""],
+      ["Golongan Ruang", report.golongan_ruang || "", "Tugas Tambahan", report.tugas_tambahan || ""],
+      ["Bulan", bulanLabel, "", ""]
     ];
     doc.autoTable({
       startY: 24,
       body: identity,
       theme: "grid",
-      styles: { font: "helvetica", fontSize: 10, cellPadding: 2.4, lineColor: [60, 60, 60], lineWidth: 0.15, textColor: [20, 20, 20], valign: "middle" },
-      columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 125 } },
+      styles: {
+        font: "helvetica", fontSize: 9.5, cellPadding: 2.2,
+        lineColor: [90, 90, 90], lineWidth: 0.15, textColor: [20, 20, 20], valign: "middle", overflow: "linebreak"
+      },
+      columnStyles: {
+        0: { cellWidth: 40, fontStyle: "bold" },
+        1: { cellWidth: 55 },
+        2: { cellWidth: 40, fontStyle: "bold" },
+        3: { cellWidth: 45 }
+      },
       margin: { left: 15, right: 15 }
     });
 
-    var bodyItems = (items || []).map(function (item, i) {
-      return [(item.no_urut || i + 1) + ".", item.kegiatan || "", item.pekerjaan || "", U.formatTanggalPendek(item.tanggal)];
+    // Tabel kegiatan: 1 baris = 1 hari (multi-baris di dalam sel)
+    var bodyItems = rows.map(function (row, i) {
+      return [
+        (i + 1) + ".",
+        row.kegiatanLines.join("\n"),
+        row.workLines.join("\n"),
+        row.tanggal ? U.formatTanggalPendek(row.tanggal) : ""
+      ];
     });
 
     doc.autoTable({
@@ -532,36 +618,56 @@
       head: [["No", "Kegiatan", "Pekerjaan", "Tanggal"]],
       body: bodyItems,
       theme: "grid",
-      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2, lineColor: [60, 60, 60], lineWidth: 0.15, textColor: [20, 20, 20], valign: "middle", overflow: "linebreak" },
-      headStyles: { fontStyle: "bold", halign: "center", fontSize: 10, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.15 },
-      columnStyles: {
-        0: { cellWidth: 12, halign: "center" },
-        1: { cellWidth: 55 },
-        2: { cellWidth: 85 },
-        3: { cellWidth: 28, halign: "center" }
+      styles: {
+        font: "helvetica", fontSize: 8.5, cellPadding: 1.8,
+        lineColor: [90, 90, 90], lineWidth: 0.15, textColor: [20, 20, 20],
+        valign: "top", overflow: "linebreak", cellWidth: "wrap"
       },
-      margin: { left: 15, right: 15, top: 15, bottom: 16 }
+      headStyles: {
+        fontStyle: "bold", halign: "center", fontSize: 9.5,
+        fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.15, valign: "middle"
+      },
+      columnStyles: {
+        0: { cellWidth: 12, halign: "center", valign: "middle" },
+        1: { cellWidth: 52 },
+        2: { cellWidth: 83 },
+        3: { cellWidth: 33, halign: "center", valign: "middle" }
+      },
+      margin: { left: 15, right: 15, top: 15, bottom: 16 },
+      rowPageBreak: "avoid"
     });
 
     var y = doc.lastAutoTable.finalY;
     var ttdDate = report.tanggal_ttd ? U.formatDateID(report.tanggal_ttd) : U.formatDateID(U.todayISO());
     var pageH = doc.internal.pageSize.getHeight();
-    if (y + 52 > pageH - 16) { doc.addPage(); y = 15; }
+    if (y + 55 > pageH - 16) { doc.addPage(); y = 15; }
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
-    var leftX = 50;
-    var rightX = pageW - 50;
+    var leftX = 55;
+    var rightX = pageW - 55;
     var start = y + 12;
-    var left = ["Mengetahui,", "Kepala " + schoolName(), "", "", kepalaNama(), nipLabel(kepalaNip())];
-    var right = [kota() + ", " + ttdDate, guruJabatan(report), "", "", guruNama(report), nipLabel(guruNip(report))];
-    left.forEach(function (l, i) { doc.text(l, leftX, start + i * 5, { align: "center" }); });
-    right.forEach(function (l, i) { doc.text(l, rightX, start + i * 5, { align: "center" }); });
+    var left = ["Mengetahui", "Kepala " + schoolName(), "", "", "", namaKap(report), nipLabel(kepalaNip())];
+    var right = [kota() + ", " + ttdDate, guruJabatan(report), "", "", "", guruNama(report), nipLabel(guruNip(report))];
+    left.forEach(function (l, i) {
+      doc.setFont("helvetica", l === namaKap(report) ? "bold" : "normal");
+      doc.text(l, leftX, start + i * 5, { align: "center" });
+    });
+    right.forEach(function (l, i) {
+      doc.setFont("helvetica", l === guruNama(report) ? "bold" : "normal");
+      doc.text(l, rightX, start + i * 5, { align: "center" });
+    });
+    doc.setFont("helvetica", "normal");
 
     pdfFooter(doc);
     doc.save(U.filename(["Laporan Kerja", bulanLabel, report.nama || "Guru BK"]) + ".pdf");
   };
 
-  /* ============================================================
+  function namaKap(report) {
+    return (report && report.kepala_nama) || kepalaNama();
+  }
+
+
+/* ============================================================
      EXCEL — DATA SISWA (template impor & ekspor)
      ============================================================ */
   EX.studentsTemplate = function () {

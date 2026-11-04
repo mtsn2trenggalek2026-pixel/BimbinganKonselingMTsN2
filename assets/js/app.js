@@ -433,6 +433,8 @@
 
   /* ---------------- EVENT BINDING ---------------- */
   function bindStatic() {
+    bindTheme();
+
     // Login
     var form = $("#login-form");
     if (form) {
@@ -563,5 +565,45 @@
 
   function closeSidebar() {
     document.body.classList.remove("sidebar-open");
+  }
+
+  /* ---------------- TEMA TERANG / GELAP ---------------- */
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+
+  function applyTheme(theme) {
+    var t = theme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem("bk.theme", t); } catch (e) {}
+    var menuIcon = document.querySelector("#menu-theme span[data-icon]");
+    if (menuIcon) menuIcon.innerHTML = U.icon(t === "dark" ? "sun" : "moon", 16);
+    var toggle = document.querySelector("#theme-toggle");
+    if (toggle) {
+      toggle.setAttribute("title", t === "dark" ? "Aktifkan tema terang" : "Aktifkan tema gelap");
+      var light = toggle.querySelector(".theme-light-icon");
+      var dark = toggle.querySelector(".theme-dark-icon");
+      if (light) light.innerHTML = U.icon("moon", 18);
+      if (dark) dark.innerHTML = U.icon("sun", 18);
+    }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", t === "dark" ? "#0b1220" : "#0f766e");
+  }
+
+  App.toggleTheme = function () {
+    applyTheme(currentTheme() === "dark" ? "light" : "dark");
+    U.toast(currentTheme() === "dark" ? "Tema gelap aktif." : "Tema terang aktif.", "info", 1800);
+  };
+
+  function bindTheme() {
+    var toggle = $("#theme-toggle");
+    if (toggle) toggle.addEventListener("click", App.toggleTheme);
+    U.on(document, "click", "#menu-theme", function (e) {
+      e.preventDefault();
+      var dd = $("#user-dropdown");
+      if (dd) dd.classList.remove("open");
+      App.toggleTheme();
+    });
+    applyTheme(currentTheme());
   }
 })();

@@ -1,12 +1,12 @@
 /* ============================================================
    Halaman Kelas VII · VIII · IX
    ------------------------------------------------------------
-   Menampilkan rombel dan siswa per tingkat pada tahun ajaran
-   terpilih, termasuk:
-     - tambah siswa / rombel,
-     - kenaikan kelas otomatis (VII -> VIII -> IX),
-     - penandaan lulus kelas IX,
-     - rekap kehadiran semester berjalan (dibanding hari efektif).
+   Tampilan dirancang agar mudah dipakai guru:
+     - tab tingkat yang jelas + ringkasan per rombel,
+     - filter rombel berupa tombol (bukan dropdown sempit),
+     - tabel ringkas (nama, L/P, NIS, hadir, alpa/sakit/izin,
+       persentase) yang menyesuaikan layar HP,
+     - menu aksi per siswa (pindah rombel, catat lulus).
    ============================================================ */
 (function () {
   "use strict";
@@ -15,6 +15,7 @@
     container: null,
     yearId: "",
     tingkat: 7,
+    kelas: "",
     search: "",
     years: [],
     year: null,
@@ -27,6 +28,8 @@
     loading: false,
     token: 0
   };
+
+  /* ---------------- BANTU ---------------- */
 
   function hashParam(name) {
     var m = (window.location.hash || "").match(new RegExp(name + "=([^&]+)"));
@@ -44,10 +47,10 @@
   }
 
   function studentsOf(tingkat) {
-    var ids = {};
-    historyFor(tingkat).forEach(function (h) { ids[h.student_id] = h; });
-    var list = state.students.filter(function (s) { return ids[s.id]; }).map(function (s) {
-      var h = ids[s.id];
+    var byId = {};
+    historyFor(tingkat).forEach(function (h) { byId[h.student_id] = h; });
+    var list = state.students.filter(function (s) { return byId[s.id]; }).map(function (s) {
+      var h = byId[s.id];
       return Object.assign({}, s, {
         _history: h,
         kelas: h.kelas || s.kelas,
@@ -55,6 +58,16 @@
       });
     });
     return U.sortStudents(list);
+  }
+
+  function visibleStudents() {
+    var q = state.search.trim().toLowerCase();
+    return studentsOf(state.tingkat).filter(function (s) {
+      if (state.kelas && s.kelas !== state.kelas) return false;
+      if (!q) return true;
+      return String(s.nama).toLowerCase().indexOf(q) !== -1 ||
+        String(s.nis || "").toLowerCase().indexOf(q) !== -1;
+    });
   }
 
   function kehadiranFor(studentId) {
@@ -73,6 +86,12 @@
     };
   }
 
+  function tone(persen) {
+    if (persen >= 90) return "good";
+    if (persen >= 75) return "warn";
+    return "bad";
+  }
+
   function statusBadge(status) {
     var map = {
       aktif: ["badge-info", "Aktif"],
@@ -82,131 +101,168 @@
       pindah: ["badge-neutral", "Pindah"],
       keluar: ["badge-neutral", "Keluar"]
     };
-    var v = map[status] || ["badge-neutral", status || "-"];
+    var v = map[status] || ["badge-neutral", status || "Aktif"];
     return '<span class="badge ' + v[0] + '">' + U.escape(v[1]) + "</span>";
   }
 
-  function levelCard(t) {
-    var clsList = classesFor(t);
+  function tingkatStats(t) {
     var list = studentsOf(t);
-    var ids = {};
-    list.forEach(function (s) { ids[s.id] = s; });
-    return '<div class="level-card' + (Number(state.tingkat) === t ? " is-selected" : "") + '">' +
-      '<div class="level-head"><span class="level-roman">' + U.TINGKAT_ROMAN[t] + "</span>" +
-        "<div><strong>Kelas " + U.TINGKAT_ROMAN[t] + "</strong><small>" + list.length + " siswa · " + clsList.length + " rombel</small></div></div>" +
-      '<div class="level-body">' +
-        clsList.map(function (c) {
-          var n = list.filter(function (s) { return s.kelas === c.nama; }).length;
-          return '<div class="level-row"><span>' + U.escape(c.nama) + "</span><strong>" + n + " siswa</strong></div>";
-        }).join("") || '<p class="muted-sm">Belum ada rombel.</p>' +
-      "</div></div>";
+    var hadir = 0, dasar = 0;
+    list.forEach(function (s) {
+      var k = kehadiranFor(s.id);
+      hadir += k.hadir;
+      dasar += k.dasar;
+    });
+    return {
+      siswa: list.length,
+      rombel: classesFor(t).length,
+      persen: U.percent(hadir, dasar)
+    };
+  }
+
+  /* ---------------- RENDER ---------------- */
+
+  function levelCard(t) {
+    var st = tingkatStats(t);
+    var cls = classesFor(t);
+    var selected = Number(state.tingkat) === t;
+    return '<button type="button" class="lvl-card' + (selected ? " is-selected" : "") + '" data-tingkat="' + t + '">' +
+      '<span class="lvl-roman">' + U.TINGKAT_ROMAN[t] + "</span>" +
+      '<span class="lvl-info">' +
+        "<strong>Kelas " + U.TINGKAT_ROMAN[t] + "</strong>" +
+        "<small>" + st.siswa + " siswa · " + st.rombel + " rombel</small>" +
+        '<span class="lvl-bar"><i style="width:' + Math.min(100, st.persen) + '%"></i></span>' +
+      "</span>" +
+      '<span class="lvl-pct">' + (st.siswa ? st.persen + "%" : "—") + "</span>" +
+    "</button>";
+  }
+
+  function rombelChips() {
+    var cls = classesFor(state.tingkat);
+    var total = studentsOf(state.tingkat).length;
+    var all = '<button type="button" class="chip' + (!state.kelas ? " is-active" : "") + '" data-kelas="">' +
+      "Semua <span>" + total + "</span></button>";
+    return all + cls.map(function (c) {
+      var n = studentsOf(state.tingkat).filter(function (s) { return s.kelas === c.nama; }).length;
+      return '<button type="button" class="chip' + (state.kelas === c.nama ? " is-active" : "") + '" data-kelas="' + U.escape(c.nama) + '">' +
+        U.escape(c.nama) + " <span>" + n + "</span></button>";
+    }).join("");
+  }
+
+  function rowHtml(s, i) {
+    var k = kehadiranFor(s.id);
+    return '<tr data-id="' + U.escape(s.id) + '">' +
+      '<td class="col-no">' + (i + 1) + "</td>" +
+      '<td class="cell-name"><div class="student-cell">' + U.avatarHtml(s, "avatar-xs") +
+        '<div class="student-cell-text"><strong>' + U.escape(s.nama) + "</strong>" +
+        '<small class="cell-sub">' + U.escape(s.kelas) + (s.nis ? " · NIS " + U.escape(s.nis) : "") + "</small></div></div></td>" +
+      '<td class="col-center cell-jk"><span class="badge badge-gender ' + (s.jenis_kelamin === "P" ? "female" : "male") + '">' + U.escape(s.jenis_kelamin) + "</span></td>" +
+      '<td class="col-center cell-status">' + statusBadge(s.status_kelas) + "</td>" +
+      '<td class="col-center cell-hadir"><span class="num-strong text-green">' + k.hadir + "</span>" +
+        (k.target ? '<small class="cell-sub">/ ' + k.target + " hari</small>" : "") + "</td>" +
+      '<td class="col-center cell-alpha"><span class="num text-red">' + k.alpa + "</span>" +
+        '<small class="cell-sub">S ' + k.sakit + " · I " + k.izin + "</small></td>" +
+      '<td class="col-center cell-pct">' +
+        '<span class="pill-pct ' + tone(k.persen) + '">' + (k.total ? k.persen + "%" : "—") + "</span>" +
+      "</td>" +
+      '<td class="col-actions"><div class="action-group">' +
+        (Number(state.tingkat) === 9 && API.isAdmin()
+          ? '<button type="button" class="icon-btn" data-act="graduate" title="Catat kelulusan">' + U.icon("checkCircle", 16) + "</button>"
+          : "") +
+        (API.isAdmin() ? '<button type="button" class="icon-btn" data-act="move" title="Pindah rombel / ubah status">' + U.icon("edit", 16) + "</button>" : "") +
+      "</div></td>" +
+    "</tr>";
+  }
+
+  function bodyRows() {
+    if (state.loading) {
+      return '<tr><td colspan="8"><div class="table-loading"><span class="spinner"></span><span>Memuat data kelas…</span></div></td></tr>';
+    }
+    var list = visibleStudents();
+    if (!list.length) {
+      return '<tr><td colspan="8">' + U.emptyState("users", "Belum ada siswa",
+        classesFor(state.tingkat).length
+          ? "Ubah kata pencarian atau tambahkan siswa baru."
+          : "Tambahkan rombel untuk tingkat ini terlebih dahulu.") + "</td></tr>";
+    }
+    return list.map(rowHtml).join("");
   }
 
   function renderShell() {
-    var yearLabel = state.year ? U.tahunAjaranLabel(state.year) : "Tahun ajaran";
-    var semesterLabel = state.activeSem ? U.SEMESTER_LABEL[state.activeSem.jenis] : "Belum ada semester berjalan";
-    var list = studentsOf(state.tingkat);
-    var q = state.search.trim().toLowerCase();
-    var filtered = list.filter(function (s) {
-      return !q || String(s.nama).toLowerCase().indexOf(q) !== -1 || String(s.nis || "").indexOf(q) !== -1;
-    });
-    var clsList = classesFor(state.tingkat);
-    var totalHadir = 0, totalDasar = 0;
-    list.forEach(function (s) {
+    var list = visibleStudents();
+    var all = studentsOf(state.tingkat);
+    var semLabel = state.activeSem
+      ? U.SEMESTER_LABEL[state.activeSem.jenis] + " · " + state.activeSem.hari_efektif + " hari efektif"
+      : "Semester berjalan belum diatur";
+    var hadir = 0, dasar = 0;
+    all.forEach(function (s) {
       var k = kehadiranFor(s.id);
-      totalHadir += k.hadir; totalDasar += k.dasar;
+      hadir += k.hadir; dasar += k.dasar;
     });
-    var hariMasuk = list.length ? Math.max.apply(null, list.map(function (s) { return kehadiranFor(s.id).total; })) : 0;
 
     return '<div class="page-head">' +
-        '<div><h1>Kelas VII · VIII · IX</h1><p>Kelola siswa per tingkat pada tahun ajaran terpilih. Siswa kelas IX dapat ditandai lulus dan dicatat sekolah lanjutannya.</p></div>' +
+        '<div><h1>Kelas VII · VIII · IX</h1><p>Pilih tingkat dan rombel untuk melihat siswa serta kehadiran semester berjalan.</p></div>' +
         '<div class="page-actions">' +
           '<button type="button" class="btn btn-secondary" id="lvl-excel">' + U.icon("download", 17) + "<span>Excel</span></button>" +
           (API.isAdmin() ? '<button type="button" class="btn btn-primary" id="lvl-add">' + U.icon("plus", 17) + "<span>Tambah Siswa</span></button>" : "") +
         "</div>" +
       "</div>" +
-      '<div class="card filter-card">' +
-        '<div class="filter-row">' +
-          '<div class="field"><label for="lvl-year">Tahun ajaran</label><select id="lvl-year">' +
+
+      '<div class="lvl-toolbar">' +
+        '<div class="lvl-year">' +
+          '<label for="lvl-year">Tahun ajaran</label>' +
+          '<select id="lvl-year"' + (API.isAdmin() ? "" : " disabled") + ">" +
             state.years.map(function (y) {
-              return '<option value="' + U.escape(y.id) + '"' + (y.id === state.yearId ? " selected" : "") + ">" + U.escape(U.tahunAjaranLabel(y)) + (y.is_aktif === false ? " (arsip)" : "") + "</option>";
-            }).join("") + "</select></div>" +
-          '<div class="field grow"><label for="lvl-search">Cari siswa</label><div class="input-with-icon">' + U.icon("search", 17) + '<input type="search" id="lvl-search" value="' + U.escape(state.search) + '" placeholder="Nama atau NIS…" autocomplete="off"></div></div>' +
-          (API.isAdmin() ? '<div class="field field-action"><button type="button" class="btn btn-soft" id="lvl-promote">' + U.icon("arrowRight", 17) + "<span>Kenaikan Kelas</span></button></div>" : "") +
+              return '<option value="' + U.escape(y.id) + '"' + (y.id === state.yearId ? " selected" : "") + ">" +
+                U.escape(U.tahunAjaranLabel(y)) + (y.is_aktif === false ? " (arsip)" : "") + "</option>";
+            }).join("") +
+          "</select>" +
         "</div>" +
+        (API.isAdmin()
+          ? '<button type="button" class="btn btn-soft btn-sm" id="lvl-promote">' + U.icon("arrowRight", 16) + "<span>Kenaikan Kelas</span></button>" +
+            '<button type="button" class="btn btn-ghost btn-sm" id="lvl-add-class">' + U.icon("plus", 16) + "<span>Rombel</span></button>"
+          : "") +
+        '<span class="lvl-sem">' + U.icon("calendar", 15) + "<span>" + U.escape(semLabel) + "</span></span>" +
       "</div>" +
-      '<div class="levels-overview">' + levelCard(7) + levelCard(8) + levelCard(9) + "</div>" +
-      '<div class="summary-grid">' +
-        '<div class="summary-card tone-teal"><span class="summary-label">Tahun ajaran</span><strong class="stat-value-sm">' + U.escape(yearLabel) + "</strong><small>" + U.escape(semesterLabel) + "</small></div>" +
-        '<div class="summary-card tone-green"><span class="summary-label">Siswa kelas ' + U.TINGKAT_ROMAN[state.tingkat] + '</span><strong id="lvl-total">' + list.length + "</strong><small>siswa</small></div>" +
-        '<div class="summary-card tone-blue"><span class="summary-label">Hari efektif</span><strong id="lvl-hari">' + (state.activeSem ? state.activeSem.hari_efektif : 0) + "</strong><small>hari masuk semester</small></div>" +
-        '<div class="summary-card tone-amber"><span class="summary-label">Kehadiran tingkat</span><strong id="lvl-persen">' + U.percent(totalHadir, totalDasar) + '%</strong><small>' + hariMasuk + " hari tercatat</small></div>" +
-      "</div>" +
-      '<div class="tabs" id="lvl-tabs">' +
-        [7, 8, 9].map(function (t) {
-          return '<button type="button" class="tab' + (Number(state.tingkat) === t ? " active" : "") + '" data-tingkat="' + t + '">Kelas ' + U.TINGKAT_ROMAN[t] +
-            ' <span class="tab-count">' + historyFor(t).length + "</span></button>";
-        }).join("") +
-        '<div class="tabs-right"><span class="table-muted">' + U.escape(clsList.length + " rombel") + "</span>" +
-          (API.isAdmin() ? '<button type="button" class="btn btn-ghost btn-sm" id="lvl-add-class">' + U.icon("plus", 15) + "<span>Rombel</span></button>" : "") +
+
+      '<div class="lvl-grid">' + [7, 8, 9].map(levelCard).join("") + "</div>" +
+
+      '<div class="lvl-panel">' +
+        '<div class="lvl-panel-head">' +
+          "<div><h2>Kelas " + U.TINGKAT_ROMAN[state.tingkat] + "</h2>" +
+            '<p>' + all.length + " siswa terdaftar · kehadiran tingkat " + (all.length ? U.percent(hadir, dasar) : 0) + "%</p></div>" +
+          '<div class="search-box">' + U.icon("search", 16) +
+            '<input type="search" id="lvl-search" value="' + U.escape(state.search) + '" placeholder="Cari nama atau NIS…" autocomplete="off">' +
+          "</div>" +
         "</div>" +
-      "</div>" +
-      '<div class="card table-card">' +
-        '<div class="table-toolbar"><div class="table-toolbar-left"><span class="table-count" id="lvl-count">' + filtered.length + " siswa</span></div>" +
-          '<div class="table-toolbar-right"><span class="table-muted">' + U.escape(state.activeSem ? "Persentase dari " + state.activeSem.hari_efektif + " hari efektif " + U.SEMESTER_LABEL[state.activeSem.jenis] : "Semester berjalan belum diatur") + "</span></div></div>" +
-        '<div class="table-wrap"><table class="data-table"><thead><tr>' +
-          '<th class="col-no">No</th><th>Nama Siswa</th><th class="col-center">L/P</th><th class="col-center">Kelas</th><th class="col-center">Status</th>' +
-          '<th class="col-center">Hadir</th><th class="col-center">Alpa</th><th class="col-center">Sakit</th><th class="col-center">Izin</th><th class="col-center">% Hadir</th><th class="col-actions">Aksi</th>' +
-        "</tr></thead><tbody id=\"lvl-tbody\">" + bodyRows(filtered) + "</tbody></table></div>" +
+        '<div class="chips" id="lvl-chips">' + rombelChips() + "</div>" +
+        '<div class="student-list-head">' +
+          '<span class="table-count" id="lvl-count">' + list.length + " siswa</span>" +
+          '<span class="table-muted">Hadir dibandingkan hari efektif semester</span>' +
+        "</div>" +
+        '<div class="table-wrap"><table class="data-table lvl-table"><thead><tr>' +
+          '<th class="col-no">No</th><th>Nama Siswa</th><th class="col-center">L/P</th><th class="col-center">Status</th>' +
+          '<th class="col-center">Hadir</th><th class="col-center">Alpa / S / I</th><th class="col-center">%</th><th class="col-actions"></th>' +
+        "</tr></thead><tbody id=\"lvl-tbody\">" + bodyRows() + "</tbody></table></div>" +
       "</div>";
   }
 
-  function bodyRows(list) {
-    if (state.loading) {
-      return '<tr><td colspan="11"><div class="table-loading"><span class="spinner"></span><span>Memuat data…</span></div></td></tr>';
-    }
-    if (!list.length) {
-      return '<tr><td colspan="11">' + U.emptyState("users", "Belum ada siswa", "Tambahkan siswa atau lakukan kenaikan kelas dari tahun ajaran sebelumnya.") + "</td></tr>";
-    }
-    return list.map(function (s, i) {
-      var k = kehadiranFor(s.id);
-      return '<tr data-id="' + U.escape(s.id) + '">' +
-        '<td class="col-no">' + (i + 1) + "</td>" +
-        '<td><div class="student-cell">' + U.avatarHtml(s, "avatar-xs") +
-          '<div class="student-cell-text"><strong>' + U.escape(s.nama) + "</strong>" + (s.nis ? '<small>NIS ' + U.escape(s.nis) + "</small>" : "") + "</div></div></td>" +
-        '<td class="col-center"><span class="badge badge-gender ' + (s.jenis_kelamin === "P" ? "female" : "male") + '">' + U.escape(s.jenis_kelamin) + "</span></td>" +
-        '<td class="col-center"><span class="class-pill">' + U.escape(s.kelas) + "</span></td>" +
-        '<td class="col-center">' + statusBadge(s.status_kelas) + "</td>" +
-        '<td class="col-center num-strong text-green">' + k.hadir + "</td>" +
-        '<td class="col-center num text-red">' + k.alpa + "</td>" +
-        '<td class="col-center num text-amber">' + k.sakit + "</td>" +
-        '<td class="col-center num text-blue">' + k.izin + "</td>" +
-        '<td class="col-center"><div class="percent-cell"><div class="percent-track"><div class="percent-fill" style="width:' + Math.min(100, k.persen) + '%"></div></div><span>' + k.persen + "%</span></div></td>" +
-        '<td class="col-actions"><div class="action-group">' +
-          (Number(state.tingkat) === 9 && API.isAdmin()
-            ? '<button type="button" class="icon-btn" data-act="graduate" title="Catat kelulusan">' + U.icon("checkCircle", 16) + "</button>"
-            : "") +
-          '<button type="button" class="icon-btn" data-act="move" title="Pindah rombel">' + U.icon("edit", 16) + "</button>" +
-        "</div></td>" +
-      "</tr>";
-    }).join("");
+  function paintRows() {
+    if (!state.container) return;
+    var tbody = U.$("#lvl-tbody", state.container);
+    if (tbody) tbody.innerHTML = bodyRows();
+    var chips = U.$("#lvl-chips", state.container);
+    if (chips) chips.innerHTML = rombelChips();
+    var count = U.$("#lvl-count", state.container);
+    if (count) count.textContent = visibleStudents().length + " siswa";
   }
 
-  function paintRows() {
-    var tbody = U.$("#lvl-tbody", state.container);
-    if (!tbody) return;
-    var q = state.search.trim().toLowerCase();
-    var list = studentsOf(state.tingkat).filter(function (s) {
-      return !q || String(s.nama).toLowerCase().indexOf(q) !== -1 || String(s.nis || "").indexOf(q) !== -1;
-    });
-    tbody.innerHTML = bodyRows(list);
-    var count = U.$("#lvl-count", state.container);
-    if (count) count.textContent = list.length + " siswa";
-  }
+  /* ---------------- DATA ---------------- */
 
   async function load() {
     var token = ++state.token;
     state.loading = true;
+    paintRows();
     try {
       var res = await Promise.all([
         API.getClassGroups(state.yearId, true),
@@ -223,11 +279,10 @@
         return s.academic_year_id === state.yearId && s.status === "aktif";
       })[0] || null;
 
-      var sem = state.activeSem;
-      if (sem && sem.tanggal_mulai && sem.tanggal_selesai) {
-        var att = await API.getAttendanceRange(sem.tanggal_mulai, sem.tanggal_selesai, {
+      if (state.activeSem && state.activeSem.tanggal_mulai) {
+        var att = await API.getAttendanceRange(state.activeSem.tanggal_mulai, state.activeSem.tanggal_selesai, {
           academicYearId: state.yearId,
-          semesterId: sem.id
+          semesterId: state.activeSem.id
         });
         if (token !== state.token) return;
         var map = {};
@@ -241,6 +296,7 @@
       } else {
         state.attendance = {};
       }
+
       state.loading = false;
       if (token !== state.token) return;
       state.container.innerHTML = renderShell();
@@ -248,23 +304,26 @@
     } catch (err) {
       if (token !== state.token) return;
       state.loading = false;
+      paintRows();
       U.toast(API.errorMessage(err), "error");
-      var tbody = U.$("#lvl-tbody", state.container);
-      if (tbody) tbody.innerHTML = '<tr><td colspan="11"><div class="notice notice-danger">' + U.icon("alert", 18) + "<span>" + U.escape(API.errorMessage(err)) + "</span></div></td></tr>";
     }
   }
 
+  /* ---------------- DIALOG ---------------- */
+
   function openAddStudent() {
     var clsList = classesFor(state.tingkat);
+    var selected = state.kelas || (clsList[0] ? clsList[0].nama : "");
     var body = '<form class="form-stack" autocomplete="off">' +
-      '<div class="notice notice-info">' + U.icon("info", 18) + "<span>Siswa ditambahkan ke <strong>" + U.escape(state.year ? U.tahunAjaranLabel(state.year) : "") + " · Kelas " + U.TINGKAT_ROMAN[state.tingkat] + "</strong>. Banyak siswa sekaligus dapat diimpor lewat Data Siswa → Import.</span></div>" +
+      '<div class="notice notice-info">' + U.icon("info", 18) + "<span>Siswa masuk ke <strong>" +
+        U.escape(state.year ? U.tahunAjaranLabel(state.year) : "") + " · Kelas " + U.TINGKAT_ROMAN[state.tingkat] + "</strong>.</span></div>" +
       '<div class="form-grid form-grid-2">' +
         '<div class="field span-2"><label for="ad-nama">Nama lengkap <span class="req">*</span></label><input type="text" id="ad-nama" required></div>' +
         '<div class="field"><label for="ad-jk">Jenis kelamin</label><select id="ad-jk"><option value="L">Laki-laki (L)</option><option value="P">Perempuan (P)</option></select></div>' +
         '<div class="field"><label for="ad-nis">NIS</label><input type="text" id="ad-nis"></div>' +
         '<div class="field"><label for="ad-kelas">Rombel</label><select id="ad-kelas">' +
-          clsList.map(function (c) { return '<option value="' + U.escape(c.id) + '">' + U.escape(c.nama) + "</option>"; }).join("") +
-          (clsList.length ? "" : '<option value="">(Belum ada rombel — tambahkan rombel dulu)</option>') +
+          clsList.map(function (c) { return '<option value="' + U.escape(c.id) + '"' + (c.nama === selected ? " selected" : "") + ">" + U.escape(c.nama) + "</option>"; }).join("") +
+          (clsList.length ? "" : '<option value="">(belum ada rombel)</option>') +
         "</select></div>" +
         '<div class="field"><label for="ad-nourut">Nomor urut</label><input type="number" min="1" id="ad-nourut"></div>' +
       "</div></form>";
@@ -283,10 +342,9 @@
           close: false,
           onClick: async function (close, overlay, bodyEl) {
             var nama = U.$("#ad-nama", bodyEl).value.trim();
-            var classId = U.$("#ad-kelas", bodyEl).value;
+            var cls = clsList.filter(function (c) { return c.id === U.$("#ad-kelas", bodyEl).value; })[0];
             if (!nama) { U.toast("Nama siswa wajib diisi.", "warning"); return; }
-            var cls = clsList.filter(function (c) { return c.id === classId; })[0];
-            if (!cls) { U.toast("Tambahkan rombel untuk tingkat ini terlebih dahulu.", "warning"); return; }
+            if (!cls) { U.toast("Belum ada rombel untuk tingkat ini.", "warning"); return; }
             var btn = bodyEl.parentNode.querySelector(".modal-foot .btn-primary");
             if (btn) U.buttonLoading(btn, true);
             try {
@@ -309,7 +367,7 @@
               });
               U.toast("Siswa ditambahkan ke " + cls.nama + ".", "success");
               close();
-              await App.refreshStudents();
+              await App.refreshStudentsAll();
               await load();
             } catch (err) {
               U.toast(API.errorMessage(err), "error");
@@ -327,14 +385,17 @@
     var body = '<form class="form-stack" autocomplete="off">' +
       '<div class="form-grid form-grid-2">' +
         '<div class="field"><label for="cl-tingkat">Tingkat</label><select id="cl-tingkat">' +
-          [7, 8, 9].map(function (t) { return '<option value="' + t + '"' + (Number(c && c.tingkat || state.tingkat) === t ? " selected" : "") + ">Kelas " + U.TINGKAT_ROMAN[t] + "</option>"; }).join("") +
+          [7, 8, 9].map(function (t) {
+            return '<option value="' + t + '"' + (Number((c && c.tingkat) || state.tingkat) === t ? " selected" : "") + ">Kelas " + U.TINGKAT_ROMAN[t] + "</option>";
+          }).join("") +
         "</select></div>" +
-        '<div class="field"><label for="cl-nama">Nama rombel <span class="req">*</span></label><input type="text" id="cl-nama" value="' + U.escape(c ? c.nama : "") + '" placeholder="Contoh: VII-A"></div>' +
+        '<div class="field"><label for="cl-nama">Nama rombel <span class="req">*</span></label><input type="text" id="cl-nama" value="' + U.escape(c ? c.nama : "") + '" placeholder="Contoh: VII-C"></div>' +
         '<div class="field span-2"><label for="cl-wali">Wali kelas</label><input type="text" id="cl-wali" value="' + U.escape(c && c.wali_kelas ? c.wali_kelas : "") + '"></div>' +
       "</div></form>";
 
     U.modal({
       title: isEdit ? "Ubah Rombel" : "Tambah Rombel",
+      subtitle: state.year ? U.tahunAjaranLabel(state.year) : "",
       size: "sm",
       body: body,
       actions: [
@@ -368,18 +429,22 @@
   function openMove(student) {
     var clsList = classesFor(state.tingkat);
     var body = '<form class="form-stack">' +
-      '<div class="field"><label for="mv-kelas">Rombel baru untuk ' + U.escape(student.nama) + "</label><select id=\"mv-kelas\">" +
-        clsList.map(function (c) { return '<option value="' + U.escape(c.id) + '"' + (c.nama === student.kelas ? " selected" : "") + ">" + U.escape(c.nama) + "</option>"; }).join("") +
+      '<div class="notice notice-info">' + U.icon("info", 18) + "<span>" + U.escape(student.nama) +
+        " · kelas saat ini <strong>" + U.escape(student.kelas) + "</strong></span></div>" +
+      '<div class="field"><label for="mv-kelas">Rombel baru</label><select id="mv-kelas">' +
+        clsList.map(function (c) {
+          return '<option value="' + U.escape(c.id) + '"' + (c.nama === student.kelas ? " selected" : "") + ">" + U.escape(c.nama) + "</option>";
+        }).join("") +
       "</select></div>" +
       '<div class="field"><label for="mv-status">Status kelas</label><select id="mv-status">' +
-        ["aktif", "naik", "tetap", "lulus", "pindah", "keluar"].map(function (s) {
-          return '<option value="' + s + '"' + (student._history && student._history.status === s ? " selected" : "") + ">" + U.capitalize(s) + "</option>";
+        [["aktif", "Aktif"], ["naik", "Naik kelas"], ["tetap", "Tetap"], ["lulus", "Lulus"], ["pindah", "Pindah"], ["keluar", "Keluar"]].map(function (o) {
+          return '<option value="' + o[0] + '"' + (student._history && student._history.status === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
         }).join("") +
       "</select></div></form>";
 
     U.modal({
-      title: "Pindah / Ubah Status",
-      subtitle: student.nama + " · " + student.kelas,
+      title: "Pindah Rombel",
+      subtitle: student.nama,
       size: "sm",
       body: body,
       actions: [
@@ -404,75 +469,9 @@
               await API.updateStudent(student.id, { kelas: cls.nama, tingkat: state.tingkat });
               U.toast("Data kelas diperbarui.", "success");
               close();
-              await App.refreshStudents();
+              await App.refreshStudentsAll();
               await load();
             } catch (err) { U.toast(API.errorMessage(err), "error"); }
-          }
-        }
-      ]
-    });
-  }
-
-  function openPromote() {
-    var years = state.years.slice();
-    var sorted = years.slice().sort(function (a, b) { return b.tahun_awal - a.tahun_awal; });
-    var fromYear = sorted.filter(function (y) { return y.id === state.yearId; })[0];
-    var body = '<div class="form-stack">' +
-      '<div class="notice notice-info">' + U.icon("info", 18) + "<span>Kenaikan kelas memindahkan siswa <strong>VII → VIII</strong> dan <strong>VIII → IX</strong>. Riwayat kelas lama tetap tersimpan per tahun ajaran.</span></div>" +
-      '<div class="form-grid form-grid-2">' +
-        '<div class="field"><label for="pr-from">Dari tahun ajaran</label><select id="pr-from">' +
-          sorted.map(function (y) { return '<option value="' + U.escape(y.id) + '"' + (y.id === state.yearId ? " selected" : "") + ">" + U.escape(U.tahunAjaranLabel(y)) + "</option>"; }).join("") +
-        "</select></div>" +
-        '<div class="field"><label for="pr-to">Ke tahun ajaran</label><select id="pr-to">' +
-          sorted.map(function (y) {
-            return '<option value="' + U.escape(y.id) + '"' + (y.id === state.yearId ? " disabled" : "") + ">" + U.escape(U.tahunAjaranLabel(y)) + (y.is_aktif === false ? " (arsip)" : "") + "</option>";
-          }).join("") +
-          '<option value="new" selected>+ Tahun ajaran baru' + (fromYear ? " (" + fromYear.tahun_awal + "/" + (fromYear.tahun_awal + 1) + " → " + (fromYear.tahun_awal + 1) + "/" + (fromYear.tahun_awal + 2) + ")" : "") + "</option>" +
-        "</select></div>" +
-      "</div>" +
-      '<label class="check-label"><input type="checkbox" id="pr-lulus"> Tandai siswa kelas IX sebagai LULUS</label>' +
-      '<p class="form-hint">Jika dicentang, siswa kelas IX tahun asal ditandai lulus dan muncul di menu Kelulusan &amp; Lanjutan. Jika tidak, mereka tetap dicatat di kelas IX.</p>' +
-      "</div>";
-
-    U.modal({
-      title: "Kenaikan Kelas",
-      subtitle: "Pindahkan rombel secara otomatis dengan akhiran yang sama (VIII-A → IX-A).",
-      size: "md",
-      body: body,
-      actions: [
-        { label: "Batal", class: "btn-secondary" },
-        {
-          label: "Proses Kenaikan",
-          class: "btn-primary",
-          icon: "arrowRight",
-          close: false,
-          onClick: async function (close, overlay, bodyEl) {
-            var fromId = U.$("#pr-from", bodyEl).value;
-            var toVal = U.$("#pr-to", bodyEl).value;
-            if (!fromId || !toVal) { U.toast("Pilih tahun ajaran asal dan tujuan.", "warning"); return; }
-            if (fromId === toVal) { U.toast("Tahun ajaran asal dan tujuan harus berbeda.", "warning"); return; }
-
-            var btn = bodyEl.parentNode.querySelector(".modal-foot .btn-primary");
-            if (btn) U.buttonLoading(btn, true);
-            try {
-              var toId = toVal;
-              if (toVal === "new") {
-                var from = state.years.filter(function (y) { return y.id === fromId; })[0];
-                toId = await API.saveAcademicYear({ tahun_awal: from.tahun_awal + 1 }, null, null);
-              }
-              var res = await API.promoteStudents(fromId, toId, U.$("#pr-lulus", bodyEl).checked);
-              U.toast("Kenaikan selesai: " + (res.naik || 0) + " siswa naik, " + (res.lulus || 0) + " lulus.", "success", 5000);
-              close();
-              await App.refreshAcademic();
-              state.years = window.APP_STATE.academicYears || state.years;
-              state.yearId = toId;
-              state.year = state.years.filter(function (y) { return y.id === toId; })[0] || null;
-              await load();
-            } catch (err) {
-              U.toast(API.errorMessage(err), "error");
-            } finally {
-              if (btn) U.buttonLoading(btn, false);
-            }
           }
         }
       ]
@@ -490,9 +489,9 @@
         "</select></div>" +
         '<div class="field"><label for="gr-kota">Kota sekolah</label><input type="text" id="gr-kota" value="Trenggalek"></div>' +
         '<div class="field"><label for="gr-jalur">Jalur masuk</label><input type="text" id="gr-jalur" placeholder="Zonasi / Prestasi / Afirmasi"></div>' +
-        '<div class="field"><label for="gr-npsn">NPSN (opsional)</label><input type="text" id="gr-npsn"></div>' +
+        '<div class="field"><label for="gr-npsn">NPSN</label><input type="text" id="gr-npsn"></div>' +
       "</div>" +
-      '<p class="form-hint">Siswa akan ditandai lulus pada ' + U.escape(state.year ? U.tahunAjaranLabel(state.year) : "") + ".</p></div>";
+      '<p class="form-hint">Siswa ditandai lulus pada ' + U.escape(state.year ? U.tahunAjaranLabel(state.year) : "") + ".</p></form>";
 
     U.modal({
       title: "Catat Kelulusan",
@@ -526,7 +525,7 @@
                 kelas: student.kelas,
                 status: "lulus"
               });
-              U.toast("Kelulusan dicatat. Lanjutkan di menu Kelulusan & Lanjutan.", "success");
+              U.toast("Kelulusan dicatat. Lihat menu Kelulusan & Lanjutan.", "success");
               close();
               await load();
             } catch (err) { U.toast(API.errorMessage(err), "error"); }
@@ -536,33 +535,97 @@
     });
   }
 
+  function openPromote() {
+    var sorted = state.years.slice().sort(function (a, b) { return b.tahun_awal - a.tahun_awal; });
+    var fromYear = sorted.filter(function (y) { return y.id === state.yearId; })[0];
+    var body = '<div class="form-stack">' +
+      '<div class="notice notice-info">' + U.icon("info", 18) + "<span>Memindahkan siswa <strong>VII → VIII</strong> dan <strong>VIII → IX</strong> dengan akhiran rombel yang sama. Riwayat kelas lama tetap tersimpan.</span></div>" +
+      '<div class="form-grid form-grid-2">' +
+        '<div class="field"><label for="pr-from">Dari tahun ajaran</label><select id="pr-from">' +
+          sorted.map(function (y) {
+            return '<option value="' + U.escape(y.id) + '"' + (y.id === state.yearId ? " selected" : "") + ">" + U.escape(U.tahunAjaranLabel(y)) + "</option>";
+          }).join("") +
+        "</select></div>" +
+        '<div class="field"><label for="pr-to">Ke tahun ajaran</label><select id="pr-to">' +
+          sorted.map(function (y) {
+            return '<option value="' + U.escape(y.id) + '"' + (y.id === state.yearId ? " disabled" : "") + ">" + U.escape(U.tahunAjaranLabel(y)) + (y.is_aktif === false ? " (arsip)" : "") + "</option>";
+          }).join("") +
+          '<option value="new" selected="selected">+ Tahun ajaran baru' +
+            (fromYear ? " (" + (fromYear.tahun_awal + 1) + "/" + (fromYear.tahun_awal + 2) + ")" : "") + "</option>" +
+        "</select></div>" +
+      "</div>" +
+      '<label class="check-label"><input type="checkbox" id="pr-lulus"> Tandai siswa kelas IX sebagai <strong>LULUS</strong></label>' +
+      '<p class="form-hint">Jika dicentang, siswa kelas IX tahun asal ditandai lulus dan muncul di menu Kelulusan &amp; Lanjutan.</p>' +
+      "</div>";
+
+    U.modal({
+      title: "Kenaikan Kelas",
+      subtitle: "Proses otomatis untuk seluruh siswa pada tahun ajaran asal.",
+      size: "md",
+      body: body,
+      actions: [
+        { label: "Batal", class: "btn-secondary" },
+        {
+          label: "Proses Kenaikan",
+          class: "btn-primary",
+          icon: "arrowRight",
+          close: false,
+          onClick: async function (close, overlay, bodyEl) {
+            var fromId = U.$("#pr-from", bodyEl).value;
+            var toVal = U.$("#pr-to", bodyEl).value;
+            if (!fromId || !toVal) { U.toast("Pilih tahun ajaran asal dan tujuan.", "warning"); return; }
+            if (fromId === toVal) { U.toast("Tahun ajaran asal dan tujuan harus berbeda.", "warning"); return; }
+            var btn = bodyEl.parentNode.querySelector(".modal-foot .btn-primary");
+            if (btn) U.buttonLoading(btn, true);
+            try {
+              var toId = toVal;
+              if (toVal === "new") {
+                var from = state.years.filter(function (y) { return y.id === fromId; })[0];
+                toId = await API.saveAcademicYear({ tahun_awal: from.tahun_awal + 1 }, null, null);
+              }
+              var res = await API.promoteStudents(fromId, toId, U.$("#pr-lulus", bodyEl).checked);
+              U.toast("Kenaikan selesai: " + (res.naik || 0) + " siswa naik, " + (res.lulus || 0) + " lulus.", "success", 5000);
+              close();
+              await App.refreshAcademic();
+              state.years = (window.APP_STATE.academicYears || []).slice();
+              state.yearId = toId;
+              state.year = state.years.filter(function (y) { return y.id === toId; })[0] || null;
+              state.kelas = "";
+              await load();
+            } catch (err) {
+              U.toast(API.errorMessage(err), "error");
+            } finally {
+              if (btn) U.buttonLoading(btn, false);
+            }
+          }
+        }
+      ]
+    });
+  }
+
   function exportExcel() {
-    var list = studentsOf(state.tingkat);
+    var list = visibleStudents();
     if (!list.length) { U.toast("Tidak ada data untuk diekspor.", "warning"); return; }
     var rows = list.map(function (s) {
       var k = kehadiranFor(s.id);
       return {
-        nama: s.nama,
-        jenis_kelamin: s.jenis_kelamin,
-        kelas: s.kelas,
-        nis: s.nis || "",
-        hadir: k.hadir,
-        alpa: k.alpa,
-        sakit: k.sakit,
-        izin: k.izin,
-        total: k.total,
-        persen: k.persen
+        nama: s.nama, jenis_kelamin: s.jenis_kelamin, kelas: s.kelas, nis: s.nis || "",
+        hadir: k.hadir, alpa: k.alpa, sakit: k.sakit, izin: k.izin, total: k.total, persen: k.persen
       };
     });
-    if (EX.levelExcel) {
+    try {
       EX.levelExcel(rows, {
         tahun: state.year ? U.tahunAjaranLabel(state.year) : "",
         semester: state.activeSem ? U.SEMESTER_LABEL[state.activeSem.jenis] : "",
         hariEfektif: state.activeSem ? state.activeSem.hari_efektif : 0,
         tingkat: state.tingkat
       });
+    } catch (err) {
+      U.toast("Gagal membuat file: " + (err.message || err), "error");
     }
   }
+
+  /* ---------------- EVENT ---------------- */
 
   function bind(container) {
     var yearSel = U.$("#lvl-year", container);
@@ -570,17 +633,29 @@
       yearSel.addEventListener("change", function (e) {
         state.yearId = e.target.value;
         state.year = state.years.filter(function (y) { return y.id === state.yearId; })[0] || null;
+        state.kelas = "";
         load();
       });
     }
+
     var search = U.$("#lvl-search", container);
-    if (search) search.addEventListener("input", U.debounce(function (e) {
-      state.search = e.target.value || "";
-      paintRows();
-    }, 160));
+    if (search) {
+      search.addEventListener("input", U.debounce(function (e) {
+        state.search = e.target.value || "";
+        paintRows();
+      }, 160));
+    }
 
     U.on(container, "click", "[data-tingkat]", function (e, btn) {
       state.tingkat = Number(btn.dataset.tingkat);
+      state.kelas = "";
+      container.innerHTML = renderShell();
+      bind(container);
+    });
+
+    U.on(container, "click", "[data-kelas]", function (e, btn) {
+      if (btn.dataset.kelas === state.kelas) return;
+      state.kelas = btn.dataset.kelas || "";
       container.innerHTML = renderShell();
       bind(container);
     });
@@ -591,7 +666,8 @@
     if (addClass) addClass.addEventListener("click", function () { openClassForm(null); });
     var promote = U.$("#lvl-promote", container);
     if (promote) promote.addEventListener("click", openPromote);
-    U.$("#lvl-excel", container).addEventListener("click", exportExcel);
+    var excel = U.$("#lvl-excel", container);
+    if (excel) excel.addEventListener("click", exportExcel);
 
     U.on(U.$("#lvl-tbody", container), "click", "[data-act]", function (e, btn) {
       var tr = btn.closest("tr[data-id]");
@@ -607,19 +683,24 @@
     state.container = container;
     state.years = (window.APP_STATE.academicYears || []).slice();
     state.search = "";
-    var q = hashParam("tahun");
-    var active = window.APP_STATE.activeYear;
-    state.yearId = (q && state.years.some(function (y) { return y.id === q; })) ? q : (active ? active.id : (state.years[0] ? state.years[0].id : ""));
-    state.year = state.years.filter(function (y) { return y.id === state.yearId; })[0] || null;
-    state.loading = true;
+    state.kelas = "";
     state.tingkat = 7;
     state.classes = [];
     state.history = [];
     state.students = (window.APP_STATE.students || []).slice();
     state.attendance = {};
+    state.loading = true;
+
+    var q = hashParam("tahun");
+    var active = window.APP_STATE.activeYear;
+    state.yearId = q && state.years.some(function (y) { return y.id === q; })
+      ? q
+      : (active ? active.id : (state.years[0] ? state.years[0].id : ""));
+    state.year = state.years.filter(function (y) { return y.id === state.yearId; })[0] || null;
 
     if (!state.yearId) {
-      container.innerHTML = '<div class="card setup-card">' + U.emptyState("calendar", "Belum ada tahun ajaran", "Tambahkan tahun ajaran terlebih dahulu.") + "</div>";
+      container.innerHTML = '<div class="card setup-card">' + U.emptyState("calendar", "Belum ada tahun ajaran",
+        "Tambahkan tahun ajaran terlebih dahulu di menu Tahun & Semester.") + "</div>";
       return;
     }
     container.innerHTML = renderShell();

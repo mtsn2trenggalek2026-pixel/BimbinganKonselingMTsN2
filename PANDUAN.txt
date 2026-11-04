@@ -89,7 +89,11 @@ FITUR
 - Akun superadmin, admin, dan guru BK. Superadmin dapat membuat,
   mengubah, menonaktifkan, dan menghapus akun admin.
 - Foto siswa otomatis dikompres maksimal 100 KB.
-- Laporan kerja bulanan, unduh Word (.docx) dan PDF.
+- Laporan kerja bulanan sesuai format Oktober 2026, unduh Word/PDF.
+  Satu hari bisa berisi banyak kegiatan; tiap kegiatan bisa
+  berisi banyak pekerjaan.
+- Tema terang & gelap (tombol matahari/bulan di kanan atas).
+- Tampilan responsif untuk komputer, tablet, dan HP.
 - Data siswa: tambah, edit, import Excel, ekspor Excel.
 - Pengaturan identitas madrasah dan penandatangan laporan.
 

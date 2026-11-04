@@ -1,12 +1,21 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Sistem Informasi Bimbingan dan Konseling MTsN 2 Trenggalek — absensi kehadiran dan laporan kerja.">
+  <meta name="description" content="Sistem Informasi Bimbingan dan Konseling MTsN 2 Trenggalek â€” absensi kehadiran dan laporan kerja.">
   <title>BK MTsN 2 Trenggalek</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f766e'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='24' font-weight='bold' fill='white' text-anchor='middle'%3EBK%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="assets/css/style.css?v=4.0.1">
+  <script>
+    // Terapkan tema sebelum halaman digambar (hindari kedipan).
+    (function () {
+      var t = "light";
+      try { t = localStorage.getItem("bk.theme") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch (e) {}
+      document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light");
+    })();
+  </script>
+  <link rel="stylesheet" href="assets/css/style.css?v=4.1.0">
+  <link rel="stylesheet" href="assets/css/additions.css?v=4.1.0">
 </head>
 <body>
 
@@ -14,11 +23,11 @@
   <div id="boot-screen" class="boot-screen">
     <div class="boot-mark">BK</div>
     <div class="boot-spinner"></div>
-    <p>Menyiapkan aplikasi…</p>
+    <p>Menyiapkan aplikasiâ€¦</p>
   </div>
 
   <div id="global-loading" class="global-loading hidden">
-    <div class="loading-card"><span class="spinner"></span><span class="loading-text">Memuat…</span></div>
+    <div class="loading-card"><span class="spinner"></span><span class="loading-text">Memuatâ€¦</span></div>
   </div>
 
   <!-- ============ LOGIN ============ -->
@@ -37,13 +46,13 @@
         <h1>Kelola absensi &amp; laporan kerja dengan lebih mudah.</h1>
         <p>Satu tempat untuk mencatat kehadiran siswa, merekap absensi, dan membuat laporan kerja siap cetak.</p>
         <ul class="auth-features">
-          <li><span class="feature-check">✓</span> Absensi harian dengan keterangan Alpa, Sakit, dan Izin</li>
-          <li><span class="feature-check">✓</span> Rekap otomatis per kelas dan periode</li>
-          <li><span class="feature-check">✓</span> Laporan kerja siap unduh Word dan PDF</li>
+          <li><span class="feature-check">âœ“</span> Absensi harian dengan keterangan Alpa, Sakit, dan Izin</li>
+          <li><span class="feature-check">âœ“</span> Rekap otomatis per kelas dan periode</li>
+          <li><span class="feature-check">âœ“</span> Laporan kerja siap unduh Word dan PDF</li>
         </ul>
       </div>
 
-      <div class="auth-foot">© 2026 BK MTsN 2 Trenggalek</div>
+      <div class="auth-foot">Â© 2026 BK MTsN 2 Trenggalek</div>
     </div>
 
     <div class="auth-panel">
@@ -131,7 +140,7 @@
 
         <span class="nav-section nav-admin">Akademik</span>
         <a href="#/tahun" class="nav-link nav-admin" data-route="tahun" data-role-menu="tahun"><span class="nav-icon" data-icon="calendar"></span><span>Tahun &amp; Semester</span></a>
-        <a href="#/tingkat" class="nav-link nav-admin" data-route="tingkat" data-role-menu="tingkat"><span class="nav-icon" data-icon="book"></span><span>Kelas VII · VIII · IX</span></a>
+        <a href="#/tingkat" class="nav-link nav-admin" data-route="tingkat" data-role-menu="tingkat"><span class="nav-icon" data-icon="book"></span><span>Kelas VII Â· VIII Â· IX</span></a>
         <a href="#/lulus" class="nav-link nav-admin" data-route="lulus" data-role-menu="lulus"><span class="nav-icon" data-icon="clipboard"></span><span>Kelulusan &amp; Lanjutan</span></a>
 
         <span class="nav-section">Administrasi</span>
@@ -148,7 +157,7 @@
           <span class="avatar" id="sidebar-avatar">BK</span>
           <div>
             <strong id="sidebar-name">Guru BK</strong>
-            <small id="sidebar-email">memuat…</small>
+            <small id="sidebar-email">memuatâ€¦</small>
             <span class="badge badge-neutral" id="sidebar-role">Guru BK</span>
           </div>
         </div>
@@ -168,20 +177,25 @@
         </div>
 
         <div class="topbar-right">
+          <button type="button" class="theme-toggle" id="theme-toggle" title="Ganti tema terang / gelap" aria-label="Ganti tema">
+            <span class="theme-light-icon" data-icon="moon" data-size="18"></span>
+            <span class="theme-dark-icon" data-icon="sun" data-size="18"></span>
+          </button>
           <div id="user-menu-wrap" class="user-menu-wrap">
             <button type="button" class="user-chip" id="user-menu-btn">
               <span class="avatar avatar-sm" id="topbar-avatar">BK</span>
               <span class="user-chip-text">
                 <strong id="topbar-name">Guru BK</strong>
-                <small id="topbar-email">memuat…</small>
+                <small id="topbar-email">memuatâ€¦</small>
               </span>
               <span data-icon="chevronDown" data-size="16"></span>
             </button>
             <div id="user-dropdown" class="user-dropdown">
               <div class="dropdown-head">
                 <strong id="user-menu-name">Guru BK</strong>
-                <span id="user-menu-email">memuat…</span>
+                <span id="user-menu-email">memuatâ€¦</span>
               </div>
+              <button type="button" id="menu-theme"><span data-icon="moon" data-size="16"></span><span>Ganti Tema</span></button>
               <button type="button" id="menu-settings"><span data-icon="settings" data-size="16"></span><span>Pengaturan</span></button>
               <button type="button" id="menu-logout" class="danger"><span data-icon="logout" data-size="16"></span><span>Keluar</span></button>
             </div>
@@ -212,17 +226,17 @@
   <script src="assets/js/utils.js"></script>
   <script src="assets/js/api.js"></script>
   <script src="assets/js/exporters.js"></script>
-  <script src="assets/js/dashboard.js?v=4.0.1"></script>
-  <script src="assets/js/attendance.js?v=4.0.1"></script>
-  <script src="assets/js/attendance-recap.js?v=4.0.1"></script>
-  <script src="assets/js/years.js?v=4.0.1"></script>
-  <script src="assets/js/levels.js?v=4.0.1"></script>
-  <script src="assets/js/graduation.js?v=4.0.1"></script>
-  <script src="assets/js/reports.js?v=4.0.1"></script>
-  <script src="assets/js/students.js?v=4.0.1"></script>
-  <script src="assets/js/accounts.js?v=4.0.1"></script>
-  <script src="assets/js/settings.js?v=4.0.1"></script>
-  <script src="assets/js/app.js?v=4.0.1"></script>
+  <script src="assets/js/dashboard.js?v=4.1.0"></script>
+  <script src="assets/js/attendance.js?v=4.1.0"></script>
+  <script src="assets/js/attendance-recap.js?v=4.1.0"></script>
+  <script src="assets/js/years.js?v=4.1.0"></script>
+  <script src="assets/js/levels.js?v=4.1.0"></script>
+  <script src="assets/js/graduation.js?v=4.1.0"></script>
+  <script src="assets/js/reports.js?v=4.1.0"></script>
+  <script src="assets/js/students.js?v=4.1.0"></script>
+  <script src="assets/js/accounts.js?v=4.1.0"></script>
+  <script src="assets/js/settings.js?v=4.1.0"></script>
+  <script src="assets/js/app.js?v=4.1.0"></script>
 
   <script>
     // Isi ikon statis pada shell & halaman login

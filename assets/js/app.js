@@ -268,7 +268,7 @@
     if (state.dbError) { renderDbError(); return; }
     var key = currentRoute();
     if (!PAGES[key]) key = "dashboard";
-    if (!canSee(key) || !window.Pages[key]) {
+    if (!canSee(key)) {
       U.toast("Halaman ini hanya untuk " + (key === "akun" ? "superadmin" : "admin") + ".", "warning");
       key = "dashboard";
     }
@@ -287,6 +287,10 @@
 
     var main = $("#main-content");
     if (!main) return;
+    if (!window.Pages[key]) {
+      main.innerHTML = '<div class="card setup-card">' + U.emptyState("alert", "Halaman belum termuat", "Muat ulang halaman dengan Ctrl + F5.") + "</div>";
+      return;
+    }
     main.innerHTML = "";
     try {
       page.render(main);

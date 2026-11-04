@@ -115,9 +115,129 @@ Bisa juga memakai XAMPP: copy folder `website` ke `C:\xampp\htdocs\bk-mtsn2`,
 nyalakan **Apache** saja (MySQL tidak diperlukan), lalu buka
 <http://localhost/bk-mtsn2/>.
 
+### Langkah 7 — Atur URL aplikasi di Supabase
+Pengaturan ini dipakai Supabase saat membuat tautan di email (konfirmasi akun,
+reset password). Login email + password tetap bisa dari alamat mana pun.
+
+1. Buka **Authentication → URL Configuration**.
+2. Isi **Site URL** dengan alamat utama aplikasi:
+
+   ```text
+   https://mtsn2trenggalek2026-pixel.github.io/BimbinganKonselingMTsN2/
+   ```
+
+   Jika nanti memakai Vercel atau domain sendiri, ganti dengan alamat tersebut.
+3. Di **Redirect URLs**, klik **Add URL** lalu tambahkan:
+
+   ```text
+   https://mtsn2trenggalek2026-pixel.github.io/BimbinganKonselingMTsN2/**
+   http://localhost:8080/**
+   https://*.vercel.app/**
+   ```
+
+4. Klik **Save**.
+
+> `**` berarti semua halaman di bawah alamat tersebut. Tanpa entri ini, tautan
+> reset password akan ditolak dengan pesan *redirect not allowed*.
+
 ---
 
-## 4. Login dan akun
+## 4. Publikasi otomatis (GitHub, Vercel, Supabase)
+
+### 4.1 Alur
+
+```text
+Edit file di C:\BK MTSN 2 Trenggalek\website
+        │  simpan (Ctrl + S)
+        ▼
+scripts\auto-push.bat  (berjalan di latar belakang)
+        │  cek sintaks → git add → commit → push
+        ▼
+GitHub: mtsn2trenggalek2026-pixel/BimbinganKonselingMTsN2 (branch main)
+        ├─ GitHub Pages → build ulang situs (±1 menit)
+        ├─ Vercel       → deploy ulang situs (±1 menit)
+        └─ Supabase     → menjalankan file baru di supabase/migrations
+```
+
+### 4.2 GitHub Pages
+Sudah aktif di
+<https://mtsn2trenggalek2026-pixel.github.io/BimbinganKonselingMTsN2/>.
+Setiap push ke `main` otomatis build ulang; tidak ada pengaturan tambahan.
+Status build dapat dilihat di **Settings → Pages**.
+
+### 4.3 Vercel
+1. Buka <https://vercel.com/new> lalu login (disarankan **Continue with GitHub**).
+2. Pilih **Import Git Repository** → repo `BimbinganKonselingMTsN2`.
+   Jika repo belum muncul, klik **Adjust GitHub App Permissions** dan beri akses.
+3. Isi konfigurasi berikut:
+
+   | Kolom | Nilai |
+   |---|---|
+   | Framework Preset | **Other** |
+   | Root Directory | `.` (biarkan) |
+   | Build Command | kosongkan |
+   | Output Directory | kosongkan |
+   | Install Command | kosongkan |
+
+4. Klik **Deploy**. Situs tersedia di `https://<nama-proyek>.vercel.app`.
+5. Setelah mendapat alamat Vercel, tambahkan ke
+   **Supabase → Authentication → URL Configuration** (Site URL dan
+   Redirect URLs `https://<nama-proyek>.vercel.app/**`).
+6. Setiap push ke `main` menjadi **Production Deployment**. Push ke branch lain
+   menjadi **Preview Deployment**.
+
+> Proyek ini hanya file statis. Jika Vercel menampilkan 404, pastikan
+> **Root Directory** = `.` dan **Output Directory** kosong (bukan `dist`/`public`).
+
+### 4.4 Integrasi Supabase dengan GitHub (migrasi database otomatis)
+Hanya **struktur database** yang ikut otomatis. Data siswa tidak pernah dikirim
+ke GitHub.
+
+1. Supabase Dashboard → **Project Settings → Integrations**.
+2. Pada **GitHub Integration**, klik **Authorize GitHub** → **Authorize Supabase**.
+3. Pilih repo `mtsn2trenggalek2026-pixel/BimbinganKonselingMTsN2`, branch `main`.
+4. Isi **Working directory** dengan `.` (folder `supabase/` ada di root repo).
+5. Aktifkan **Deploy to production** agar migrasi dijalankan otomatis.
+6. Klik **Enable integration**.
+
+Cara kerja:
+
+- Supabase hanya menjalankan file **baru** di `supabase/migrations/`.
+- File migrasi yang sudah pernah dijalankan **jangan diubah**. Untuk perubahan
+  berikutnya, buat file baru dengan awalan tanggal, misalnya
+  `20261201100000_tambah_nis.sql`.
+- Perubahan di luar folder `supabase/` (HTML/CSS/JS) tidak menyentuh database.
+
+### 4.5 Auto-push: edit → otomatis masuk GitHub
+1. Klik dua kali **`scripts\auto-push.bat`**.
+2. Biarkan jendelanya terbuka selama mengedit.
+3. Setiap kali file disimpan, skrip menunggu 5 detik, memeriksa sintaks
+   `assets/js/*.js`, lalu commit + push otomatis.
+
+Perintah lain:
+
+```bat
+scripts\auto-push.bat -Once                :: push sekali lalu keluar
+scripts\auto-push.bat -DebounceSeconds 10  :: tunggu 10 detik sebelum push
+```
+
+- Log tersimpan di `scripts\auto-push.log`.
+- Jika sintaks JavaScript salah, push dibatalkan sampai diperbaiki.
+- Jika push gagal (internet/login), skrip mencoba lagi 30 detik kemudian.
+- Auto-push hanya mengirim **kode**. Perubahan database tetap lewat folder
+  `supabase/migrations/`.
+- Untuk berhenti: tekan **Ctrl + C** atau tutup jendela auto-push.
+
+### 4.6 Alur kerja harian
+1. Jalankan `scripts\auto-push.bat` (sekali saja, biarkan terbuka).
+2. Edit file seperti biasa, lalu simpan.
+3. Tunggu ±10 detik. GitHub, Vercel, dan Supabase memperbarui otomatis.
+4. Untuk perubahan database: buat file baru di `supabase/migrations/`, simpan,
+   lalu tunggu integrasi Supabase menjalankannya.
+
+---
+
+## 5. Login dan akun
 
 Login memakai email + password yang dibuat di **Supabase Auth**.
 Tidak ada akun bawaan di dalam kode.
@@ -130,7 +250,7 @@ Tidak ada akun bawaan di dalam kode.
 
 ---
 
-## 5. Fitur utama
+## 6. Fitur utama
 
 ### Absensi
 - Pilih tanggal dan kelas.
@@ -168,7 +288,7 @@ Tidak ada akun bawaan di dalam kode.
 
 ---
 
-## 6. Struktur folder
+## 7. Struktur folder
 
 ```text
 website/
@@ -177,10 +297,15 @@ website/
 ├─ PANDUAN.txt                # panduan singkat
 ├─ README.md
 ├─ supabase/
+│  ├─ config.toml             # konfigurasi Supabase CLI
+│  ├─ migrations/             # migrasi otomatis saat push ke GitHub
 │  ├─ schema.sql              # tabel + RLS + RPC (tanpa data siswa)
 │  ├─ schema-lengkap.local.sql# versi + 284 siswa (lokal, tidak di-push)
 │  ├─ BACA-INI.txt            # langkah menerapkan skema
 │  └─ cek.sql                 # query verifikasi
+├─ scripts/
+│  ├─ auto-push.bat           # klik dua kali: pantau + push otomatis
+│  └─ auto-push.ps1           # logika auto-push
 ├─ assets/
 │  ├─ css/style.css
 │  ├─ data/students.json      # cadangan lokal (tidak di-push)
@@ -202,7 +327,7 @@ website/
 
 ---
 
-## 7. Keamanan
+## 8. Keamanan
 
 - Login memakai **Supabase Auth** (password di-hash oleh Supabase, bukan di browser).
 - Semua tabel memakai **Row Level Security**: hanya pengguna `authenticated`
@@ -214,7 +339,7 @@ website/
 
 ---
 
-## 8. Backup dan pemulihan
+## 9. Backup dan pemulihan
 
 ### Backup
 1. Supabase Dashboard → **Database → Backups** (sesuai paket).
@@ -239,7 +364,7 @@ dihapus. Data siswa dapat diisi ulang lewat import Excel atau dengan menjalankan
 
 ---
 
-## 9. Reset password
+## 10. Reset password
 
 1. Buka **Supabase Dashboard → Authentication → Users**.
 2. Cari email guru BK.
@@ -251,7 +376,7 @@ Guru juga dapat mengganti password sendiri lewat
 
 ---
 
-## 10. MCP Supabase di OpenCode
+## 11. MCP Supabase di OpenCode
 
 Server MCP sudah didaftarkan di konfigurasi OpenCode:
 
@@ -282,7 +407,7 @@ login di MCP berbeda dengan pemilik proyek. Jalankan `/mcps` → **supabase** �
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Masalah | Solusi |
 |---|---|
@@ -294,10 +419,15 @@ login di MCP berbeda dengan pemilik proyek. Jalankan `/mcps` → **supabase** �
 | Data tidak muncul setelah login | Muat ulang dengan `Ctrl + F5`, lalu periksa **Console** browser. |
 | Ekspor Word/PDF tidak jalan | Pastikan folder `vendor/` lengkap dan browser mengizinkan unduhan. |
 | Tampilan berantakan | Gunakan Chrome/Edge terbaru, lalu muat ulang dengan `Ctrl + F5`. |
+| Auto-push tidak jalan | Jalankan `scripts\auto-push.bat`, pastikan jendelanya terbuka dan lihat `scripts\auto-push.log`. |
+| Push ditolak `403` / minta login | Login ulang dengan akun pemilik repo: `git credential-manager github login`, lalu jalankan auto-push lagi. |
+| Migrasi Supabase tidak jalan | Pastikan integrasi GitHub aktif, file berada di `supabase/migrations/`, dan namanya berawalan timestamp. |
+| Vercel menampilkan 404 | Set **Root Directory** `.` dan kosongkan **Output Directory**. |
+| Halaman Vercel/GitHub Pages kosong | Tambahkan alamat situs ke **Supabase → Authentication → URL Configuration**. |
 
 ---
 
-## 12. Catatan pengembangan
+## 13. Catatan pengembangan
 
 - Tidak ada proses build. Cukup edit file lalu muat ulang browser (`Ctrl + F5`).
 - Cek sintaks JavaScript:
@@ -316,8 +446,12 @@ login di MCP berbeda dengan pemilik proyek. Jalankan `/mcps` → **supabase** �
 
   atau buka lewat `start.bat` (PHP built-in server dari XAMPP).
 
-- Untuk mengubah struktur database, edit `supabase/schema.sql` lalu jalankan ulang
-  di SQL Editor (atau lewat MCP `apply_migration`).
+- Untuk mengubah struktur database, **jangan edit `supabase/schema.sql` saja**.
+  Buat file baru di `supabase/migrations/` dengan nama berawalan tanggal, misalnya
+  `20261201100000_tambah_nis.sql`. Setelah di-push, integrasi Supabase akan
+  menjalankannya otomatis di proyek produksi.
+- `supabase/schema.sql` tetap dipakai untuk menyiapkan proyek baru dari nol
+  (jalankan sekali lewat SQL Editor).
 
 ---
 

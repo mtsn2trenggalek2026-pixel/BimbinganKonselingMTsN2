@@ -559,6 +559,103 @@ begin
 end;
 $$;
 
+-- Hapus satu semester. Absensi yang tercatat pada semester tersebut tetap
+-- tersimpan, tetapi tautannya dikosongkan (semester_id = null).
+create or replace function public.delete_semester(p_semester_id uuid)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_row     public.semesters;
+  v_att     integer;
+begin
+  if not public.is_admin() then
+    raise exception 'Hanya admin yang dapat menghapus semester.' using errcode = '42501';
+  end if;
+
+  select * into v_row from public.semesters where id = p_semester_id;
+  if not found then
+    raise exception 'Semester tidak ditemukan.' using errcode = 'P0002';
+  end if;
+
+  update public.attendance set semester_id = null where semester_id = p_semester_id;
+  get diagnostics v_att = row_count;
+
+  delete from public.semesters where id = p_semester_id;
+
+  return jsonb_build_object(
+    'deleted', p_semester_id,
+    'jenis', v_row.jenis,
+    'status_sebelumnya', v_row.status,
+    'absensi_dilepas', v_att
+  );
+end;
+$$;
+
+-- Hapus satu tahun ajaran beserta semester, rombel, riwayat kelas, dan
+-- catatan kelulusannya. Absensi tetap tersimpan (tautannya dikosongkan).
+create or replace function public.delete_academic_year(p_year_id uuid)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_row      public.academic_years;
+  v_att      integer;
+  v_hist     integer;
+  v_grad     integer;
+  v_class    integer;
+  v_sem      integer;
+  v_semester uuid;
+begin
+  if not public.is_admin() then
+    raise exception 'Hanya admin yang dapat menghapus tahun ajaran.' using errcode = '42501';
+  end if;
+
+  select * into v_row from public.academic_years where id = p_year_id;
+  if not found then
+    raise exception 'Tahun ajaran tidak ditemukan.' using errcode = 'P0002';
+  end if;
+
+  -- Lepaskan tautan absensi agar riwayat absensi tidak ikut terhapus.
+  update public.attendance set academic_year_id = null, semester_id = null
+   where academic_year_id = p_year_id
+      or semester_id in (select id from public.semesters where academic_year_id = p_year_id);
+  get diagnostics v_att = row_count;
+
+  select count(*) into v_sem from public.semesters where academic_year_id = p_year_id;
+  select count(*) into v_class from public.class_groups where academic_year_id = p_year_id;
+
+  delete from public.graduations where academic_year_id = p_year_id;
+  get diagnostics v_grad = row_count;
+
+  delete from public.student_history where academic_year_id = p_year_id;
+  get diagnostics v_hist = row_count;
+
+  delete from public.academic_years where id = p_year_id;
+
+  -- Aktifkan semester terbaru yang tersisa bila tidak ada semester berjalan.
+  if not exists (select 1 from public.semesters where status = 'aktif') then
+    select id into v_semester from public.semesters order by tanggal_mulai desc limit 1;
+    if v_semester is not null then
+      update public.semesters set status = 'aktif' where id = v_semester;
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'deleted', p_year_id,
+    'semester', v_sem,
+    'rombel', v_class,
+    'riwayat_kelas', v_hist,
+    'kelulusan', v_grad,
+    'absensi_dilepas', v_att
+  );
+end;
+$$;
+
 -- Arsipkan data yang lebih tua dari 5 tahun (is_aktif = false).
 -- Data TIDAK dihapus, hanya disembunyikan dari tampilan "aktif".
 create or replace function public.archive_old_academic_years()
@@ -892,6 +989,8 @@ grant execute on function public.is_superadmin()                                
 grant execute on function public.save_academic_year(jsonb, jsonb, jsonb)           to authenticated;
 grant execute on function public.set_active_semester(uuid)                         to authenticated;
 grant execute on function public.finish_semester(uuid)                             to authenticated;
+grant execute on function public.delete_semester(uuid)                             to authenticated;
+grant execute on function public.delete_academic_year(uuid)                        to authenticated;
 grant execute on function public.promote_students(uuid, uuid, boolean)             to authenticated;
 grant execute on function public.archive_old_academic_years()                      to authenticated;
 grant execute on function public.graduation_summary(uuid)                          to authenticated;

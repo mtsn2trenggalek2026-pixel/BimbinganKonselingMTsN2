@@ -349,16 +349,32 @@ Tidak ada akun bawaan di dalam kode.
 - Tahun ajaran lama dapat diarsipkan (nonaktif) dan tetap dibuka lewat
   **Tampilkan arsip**. Tombol **Arsipkan > 5 tahun** menjalankan
   `archive_old_academic_years()` — tidak ada data yang dihapus.
+- **Hapus semester** (tombol di kartu semester) dan **hapus tahun ajaran**
+  (ikon sampah di kartu tahun ajaran). Saat dihapus:
+  - semester / rombel / riwayat kelas / catatan kelulusan tahun tersebut terhapus;
+  - **riwayat absensi tetap tersimpan**, hanya tautan semesternya dikosongkan;
+  - laporan kerja tidak tersentuh;
+  - jika semester berjalan terhapus, semester terbaru yang tersisa otomatis diaktifkan.
+  > Membutuhkan fungsi `delete_semester` & `delete_academic_year`.
+  > Jalankan **`supabase/update-hapus-tahun-semester.sql`** bila migrasi Anda dibuat
+  > sebelum fitur ini ada.
 
 ### Tampilan terang / gelap
 - Tombol matahari/bulan di kanan atas (atau menu akun → **Ganti Tema**).
 - Pilihan disimpan di browser (`localStorage`), diterapkan sebelum halaman
   digambar agar tidak berkedip. Jika belum pernah memilih, tema mengikuti
   pengaturan sistem operasi.
+- Mode gelap menutup **semua** permukaan: kartu, tabel, tombol, dropdown,
+  chip filter, tombol absensi (Masuk/Tidak Masuk), modal, notifikasi, form, dan
+  halaman login — sehingga tidak ada lagi teks yang tenggelam di latar putih.
 
-### Kelas VII · VIII · IX (menu *Kelas VII · VIII · IX*)
+### Kelas (menu *Kelas*)
+Menu navigasi hanya **Kelas** (tanpa daftar A/B/C dan tingkat).
+- Di halaman: 3 pilihan tingkat (VII / VIII / IX) + filter rombel berupa dropdown.
+- Menu **Tahun & Semester** dan **Kelulusan** tersedia sebagai tombol di halaman Kelas
+  (juga dapat dibuka lewat alamat `#/tahun` dan `#/lulus`).
 - Kartu ringkas jumlah siswa & rombel per tingkat.
-- Tab per tingkat, tabel siswa dengan kehadiran semester berjalan.
+- Tabel siswa dengan kehadiran semester berjalan.
 - **Tambah Siswa**, **Tambah Rombel**, pindah rombel, ubah status.
 - **Kenaikan Kelas**: VII → VIII → IX otomatis memakai akhiran rombel yang sama
   (VIII-A → IX-A). Opsi **tandai kelas IX lulus** membuat catatan kelulusan.

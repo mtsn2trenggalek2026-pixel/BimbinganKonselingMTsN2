@@ -49,6 +49,7 @@
         (canFinish ? '<button type="button" class="btn btn-secondary btn-sm" data-act="finish-sem" data-id="' + U.escape(sem.id) + '">' + U.icon("checkCircle", 16) + "<span>Selesaikan &amp; lanjut</span></button>" : "") +
         (sem.status === "selesai" ? '<span class="sem-note">' + U.icon("checkCircle", 15) + " Semester telah selesai</span>" : "") +
         (!canStart && sem.status === "draft" && !readOnly ? '<span class="sem-note muted">Selesaikan semester ganjil terlebih dahulu.</span>' : "") +
+        (readOnly ? "" : '<button type="button" class="btn btn-ghost btn-sm sem-delete" data-act="delete-sem" data-id="' + U.escape(sem.id) + '">' + U.icon("trash", 15) + "<span>Hapus semester</span></button>") +
       "</div>" +
     "</div>";
   }
@@ -68,6 +69,7 @@
           (archived ? '<span class="badge badge-neutral">Arsip</span>' : '<span class="badge badge-success">Aktif</span>') +
           '<a class="btn btn-ghost btn-sm" href="#/tingkat?tahun=' + encodeURIComponent(y.id) + '">' + U.icon("book", 16) + "<span>Kelas</span></a>" +
           (editable ? '<button type="button" class="btn btn-ghost btn-sm" data-act="archive-year" data-id="' + U.escape(y.id) + '">' + U.icon("edit", 16) + "<span>Ubah</span></button>" : "") +
+          (editable ? '<button type="button" class="icon-btn icon-danger" data-act="delete-year" data-id="' + U.escape(y.id) + '" title="Hapus tahun ajaran">' + U.icon("trash", 16) + "</button>" : "") +
         "</div>" +
       "</div>" +
       '<div class="sem-row">' +
@@ -338,6 +340,47 @@
     }
   }
 
+  async function deleteSemester(sem) {
+    var year = state.years.filter(function (y) { return y.id === sem.academic_year_id; })[0] || {};
+    var ok = await U.confirm(
+      "Hapus " + U.SEMESTER_LABEL[sem.jenis] + " " + U.tahunAjaranLabel(year) + " secara permanen? " +
+      "Riwayat absensi semester ini tetap tersimpan, tetapi tidak lagi terhubung ke semester.",
+      { title: "Hapus Semester", confirmLabel: "Ya, Hapus", danger: true }
+    );
+    if (!ok) return;
+    try {
+      var res = await API.deleteSemester(sem.id);
+      U.toast("Semester dihapus." + (res && res.absensi_dilepas ? " " + res.absensi_dilepas + " catatan absensi dipertahankan." : ""), "success", 5000);
+      await load();
+    } catch (err) {
+      U.toast(/could not find the function|does not exist/i.test(String(err && err.message))
+        ? "Fungsi hapus semester belum ada. Jalankan supabase/update-hapus-tahun-semester.sql."
+        : API.errorMessage(err), "error", 8000);
+    }
+  }
+
+  async function deleteYear(y) {
+    var sems = semestersOf(y.id);
+    var ok = await U.confirm(
+      "Hapus tahun ajaran " + U.tahunAjaranLabel(y) + " secara permanen? " +
+      sems.length + " semester, rombel, riwayat kelas, dan catatan kelulusan tahun ini ikut terhapus. " +
+      "Riwayat absensi dan laporan kerja tetap disimpan.",
+      { title: "Hapus Tahun Ajaran", confirmLabel: "Ya, Hapus", danger: true }
+    );
+    if (!ok) return;
+    try {
+      var res = await API.deleteAcademicYear(y.id);
+      U.toast("Tahun ajaran dihapus." + (res && res.absensi_dilepas ? " " + res.absensi_dilepas + " catatan absensi dipertahankan." : ""), "success", 5000);
+      await load();
+    } catch (err) {
+      if (/could not find the function|does not exist/i.test(String(err && err.message))) {
+        U.toast("Fungsi hapus tahun ajaran belum ada. Jalankan supabase/update-hapus-tahun-semester.sql.", "error", 8000);
+      } else {
+        U.toast(API.errorMessage(err), "error");
+      }
+    }
+  }
+
   async function archiveOld() {
     var ok = await U.confirm(
       "Arsipkan tahun ajaran yang lebih tua dari 5 tahun? Data tidak dihapus, hanya menjadi nonaktif dan tetap bisa dibuka lewat \"Tampilkan arsip\".",
@@ -365,7 +408,12 @@
       var act = btn.dataset.act;
       var id = btn.dataset.id;
       var year = state.years.filter(function (y) { return y.id === id; })[0];
-      if (act === "edit-sem") {
+      if (act === "delete-year" && year) {
+        deleteYear(year);
+      } else if (act === "delete-sem") {
+        var delSem = state.semesters.filter(function (s) { return s.id === id; })[0];
+        if (delSem) deleteSemester(delSem);
+      } else if (act === "edit-sem") {
         var sem = state.semesters.filter(function (s) { return s.id === id; })[0];
         if (sem) openSemesterForm(sem);
       } else if (act === "start-sem") {

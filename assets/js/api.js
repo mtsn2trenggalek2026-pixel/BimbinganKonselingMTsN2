@@ -630,6 +630,22 @@
     return id;
   };
 
+  /* Hapus tahun ajaran (semester, rombel, riwayat kelas, kelulusan ikut terhapus).
+     Absensi dan laporan kerja tetap disimpan; kolom relasinya dijadikan kosong. */
+  API.deleteAcademicYear = async function (id) {
+    if (!id) throw makeError("Tahun ajaran tidak dipilih.", 422, "invalid_data");
+    var res = await db().rpc("delete_academic_year", { p_year_id: id });
+    if (res.error) throw fail(res.error);
+    return res.data || {};
+  };
+
+  API.deleteSemester = async function (id) {
+    if (!id) throw makeError("Semester tidak dipilih.", 422, "invalid_data");
+    var res = await db().rpc("delete_semester", { p_semester_id: id });
+    if (res.error) throw fail(res.error);
+    return res.data || {};
+  };
+
   async function ensureDefaultClasses(academicYearId) {
     var rows = [
       { academic_year_id: academicYearId, tingkat: 7, nama: "VII-A" },

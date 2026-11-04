@@ -59,6 +59,11 @@ join public.students s on s.id = g.student_id
 join public.academic_years y on y.id = g.academic_year_id
 order by y.tahun_awal desc, s.nama;
 
+-- 10b. Fungsi hapus tahun ajaran/semester (harus muncul 2 baris)
+select proname from pg_proc
+where pronamespace = 'public'::regnamespace
+  and proname in ('delete_semester', 'delete_academic_year');
+
 -- 11. Bucket foto siswa (harus public = true dan file_size_limit = 102400)
 select id, name, public, file_size_limit, allowed_mime_types
 from storage.buckets where id = 'siswa-foto';

@@ -137,16 +137,14 @@
     "</button>";
   }
 
-  function rombelChips() {
+  function rombelSelect() {
     var cls = classesFor(state.tingkat);
-    var total = studentsOf(state.tingkat).length;
-    var all = '<button type="button" class="chip' + (!state.kelas ? " is-active" : "") + '" data-kelas="">' +
-      "Semua <span>" + total + "</span></button>";
-    return all + cls.map(function (c) {
-      var n = studentsOf(state.tingkat).filter(function (s) { return s.kelas === c.nama; }).length;
-      return '<button type="button" class="chip' + (state.kelas === c.nama ? " is-active" : "") + '" data-kelas="' + U.escape(c.nama) + '">' +
-        U.escape(c.nama) + " <span>" + n + "</span></button>";
-    }).join("");
+    return '<select id="lvl-kelas" title="Filter rombel">' +
+      '<option value="">Semua rombel</option>' +
+      cls.map(function (c) {
+        return '<option value="' + U.escape(c.nama) + '"' + (state.kelas === c.nama ? " selected" : "") + ">" + U.escape(c.nama) + "</option>";
+      }).join("") +
+    "</select>";
   }
 
   function rowHtml(s, i) {
@@ -201,8 +199,12 @@
     });
 
     return '<div class="page-head">' +
-        '<div><h1>Kelas VII · VIII · IX</h1><p>Pilih tingkat dan rombel untuk melihat siswa serta kehadiran semester berjalan.</p></div>' +
+        '<div><h1>Kelas</h1><p>Pilih tingkat untuk melihat siswa serta kehadiran semester berjalan.</p></div>' +
         '<div class="page-actions">' +
+          (API.isAdmin()
+            ? '<button type="button" class="btn btn-ghost" id="lvl-tahun">' + U.icon("calendar", 17) + "<span>Tahun &amp; Semester</span></button>" +
+              '<button type="button" class="btn btn-ghost" id="lvl-lulus">' + U.icon("clipboard", 17) + "<span>Kelulusan</span></button>"
+            : "") +
           '<button type="button" class="btn btn-secondary" id="lvl-excel">' + U.icon("download", 17) + "<span>Excel</span></button>" +
           (API.isAdmin() ? '<button type="button" class="btn btn-primary" id="lvl-add">' + U.icon("plus", 17) + "<span>Tambah Siswa</span></button>" : "") +
         "</div>" +
@@ -235,10 +237,10 @@
             '<input type="search" id="lvl-search" value="' + U.escape(state.search) + '" placeholder="Cari nama atau NIS…" autocomplete="off">' +
           "</div>" +
         "</div>" +
-        '<div class="chips" id="lvl-chips">' + rombelChips() + "</div>" +
         '<div class="student-list-head">' +
           '<span class="table-count" id="lvl-count">' + list.length + " siswa</span>" +
-          '<span class="table-muted">Hadir dibandingkan hari efektif semester</span>' +
+          '<span class="lvl-head-tools">' + rombelSelect() +
+            '<span class="table-muted">Hadir dibandingkan hari efektif semester</span></span>' +
         "</div>" +
         '<div class="table-wrap"><table class="data-table lvl-table"><thead><tr>' +
           '<th class="col-no">No</th><th>Nama Siswa</th><th class="col-center">L/P</th><th class="col-center">Status</th>' +
@@ -251,8 +253,6 @@
     if (!state.container) return;
     var tbody = U.$("#lvl-tbody", state.container);
     if (tbody) tbody.innerHTML = bodyRows();
-    var chips = U.$("#lvl-chips", state.container);
-    if (chips) chips.innerHTML = rombelChips();
     var count = U.$("#lvl-count", state.container);
     if (count) count.textContent = visibleStudents().length + " siswa";
   }
@@ -653,12 +653,13 @@
       bind(container);
     });
 
-    U.on(container, "click", "[data-kelas]", function (e, btn) {
-      if (btn.dataset.kelas === state.kelas) return;
-      state.kelas = btn.dataset.kelas || "";
-      container.innerHTML = renderShell();
-      bind(container);
-    });
+    var kelasSel = U.$("#lvl-kelas", container);
+    if (kelasSel) {
+      kelasSel.addEventListener("change", function (e) {
+        state.kelas = e.target.value || "";
+        paintRows();
+      });
+    }
 
     var addBtn = U.$("#lvl-add", container);
     if (addBtn) addBtn.addEventListener("click", openAddStudent);
@@ -668,6 +669,10 @@
     if (promote) promote.addEventListener("click", openPromote);
     var excel = U.$("#lvl-excel", container);
     if (excel) excel.addEventListener("click", exportExcel);
+    var tahunBtn = U.$("#lvl-tahun", container);
+    if (tahunBtn) tahunBtn.addEventListener("click", function () { App.navigate("tahun"); });
+    var lulusBtn = U.$("#lvl-lulus", container);
+    if (lulusBtn) lulusBtn.addEventListener("click", function () { App.navigate("lulus"); });
 
     U.on(U.$("#lvl-tbody", container), "click", "[data-act]", function (e, btn) {
       var tr = btn.closest("tr[data-id]");

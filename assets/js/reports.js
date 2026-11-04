@@ -417,7 +417,7 @@
           '<button type="button" class="btn btn-primary" id="rep-save">' + U.icon("save", 17) + "<span>Simpan</span></button>" +
         "</div>" +
       "</div>" +
-      '<details class="card rep-collapse" id="rep-identity-box"' + (isNew ? " open" : "") + ">" +
+      '<details class="card rep-collapse" id="rep-identity-box"' + (isNew ? " open" : "") + " data-is-new=\"" + (isNew ? "1" : "0") + "\">" +
         '<summary class="rep-collapse-head"><span>' + U.icon("user", 17) + "<strong>Identitas Pegawai &amp; Penandatangan</strong></span>" +
           '<span class="rep-collapse-hint">klik untuk buka/tutup</span></summary>' +
         '<div class="form-grid" id="rep-identity">' +
@@ -506,6 +506,21 @@
     state.container.innerHTML = editorShell();
     bindEditor();
     renderDays();
+    syncEditorTitle();
+  }
+
+  /* Judul dan status simpan mengikuti isi editor. */
+  function syncEditorTitle() {
+    var title = U.$(".editor-title h1", state.container);
+    if (title) title.textContent = state.editing && state.editing.id ? "Edit Laporan Kerja" : "Laporan Kerja Baru";
+    var box = U.$("#rep-identity-box", state.container);
+    if (box) {
+      var isNew = !(state.editing && state.editing.id);
+      if (box.getAttribute("data-is-new") !== (isNew ? "1" : "0")) {
+        box.setAttribute("data-is-new", isNew ? "1" : "0");
+        if (isNew) box.setAttribute("open", "open");
+      }
+    }
   }
 
   /* ---------------- EVENT EDITOR ---------------- */
@@ -754,7 +769,8 @@
     var btn = U.$("#rep-save", state.container);
     U.buttonLoading(btn, true);
     try {
-      await API.saveReport(data.report, data.items);
+      var savedId = await API.saveReport(data.report, data.items);
+      if (savedId) state.editing.id = savedId;
       state.editorDirty = false;
       state.loaded = false;
       state.saving = false;

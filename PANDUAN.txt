@@ -94,8 +94,9 @@ FITUR
   berisi banyak pekerjaan.
 - Tema terang & gelap (tombol matahari/bulan di kanan atas).
 - Tahun ajaran & semester dapat dihapus (absensi lama tetap tersimpan).
-  Bila fungsi hapus belum ada, jalankan
-  supabase\update-hapus-tahun-semester.sql.
+  Bila tombol hapus gagal: buka Tahun & Semester > tombol
+  "Periksa Database", lalu jalankan
+  supabase\update-hapus-tahun-semester.sql di SQL Editor Supabase.
 - Menu navigasi: Dasbor, Absensi, Rekap Absensi, Kelas (tanpa A/B/C),
   Tahun & Semester, Kelulusan, Laporan Kerja, Data Siswa, Akun, Pengaturan.
 - Rombel dapat ditambah, diubah, dan dihapus di halaman Kelas.

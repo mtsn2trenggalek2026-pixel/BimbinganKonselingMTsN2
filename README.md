@@ -357,7 +357,8 @@ Tidak ada akun bawaan di dalam kode.
   - jika semester berjalan terhapus, semester terbaru yang tersisa otomatis diaktifkan.
   > Membutuhkan fungsi `delete_semester` & `delete_academic_year`.
   > Jalankan **`supabase/update-hapus-tahun-semester.sql`** bila migrasi Anda dibuat
-  > sebelum fitur ini ada.
+  > sebelum fitur ini ada. Di halaman *Tahun & Semester* tersedia tombol
+  > **Periksa Database** untuk memastikan kedua fungsi sudah ada.
 
 ### Tampilan terang / gelap
 - Tombol matahari/bulan di kanan atas (atau menu akun → **Ganti Tema**).

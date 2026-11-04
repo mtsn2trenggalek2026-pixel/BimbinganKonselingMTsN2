@@ -69,7 +69,7 @@
           (archived ? '<span class="badge badge-neutral">Arsip</span>' : '<span class="badge badge-success">Aktif</span>') +
           '<a class="btn btn-ghost btn-sm" href="#/tingkat?tahun=' + encodeURIComponent(y.id) + '">' + U.icon("book", 16) + "<span>Kelas</span></a>" +
           (editable ? '<button type="button" class="btn btn-ghost btn-sm" data-act="archive-year" data-id="' + U.escape(y.id) + '">' + U.icon("edit", 16) + "<span>Ubah</span></button>" : "") +
-          (editable ? '<button type="button" class="icon-btn icon-danger" data-act="delete-year" data-id="' + U.escape(y.id) + '" title="Hapus tahun ajaran">' + U.icon("trash", 16) + "</button>" : "") +
+          (editable ? '<button type="button" class="btn btn-ghost btn-sm btn-delete" data-act="delete-year" data-id="' + U.escape(y.id) + '">' + U.icon("trash", 16) + "<span>Hapus</span></button>" : "") +
         "</div>" +
       "</div>" +
       '<div class="sem-row">' +
@@ -89,6 +89,7 @@
         '<div class="page-actions">' +
           '<label class="check-label"><input type="checkbox" id="year-archived"' + (state.showArchived ? " checked" : "") + '> Tampilkan arsip</label>' +
           '<button type="button" class="btn btn-secondary" id="year-archive-old">' + U.icon("clock", 17) + "<span>Arsipkan &gt; 5 tahun</span></button>" +
+          '<button type="button" class="btn btn-ghost" id="year-diag" title="Periksa apakah fungsi hapus sudah ada di database">' + U.icon("checkCircle", 17) + "<span>Periksa Database</span></button>" +
           '<button type="button" class="btn btn-primary" id="year-add">' + U.icon("plus", 17) + "<span>Tahun Ajaran Baru</span></button>" +
         "</div>" +
       "</div>" +
@@ -353,9 +354,7 @@
       U.toast("Semester dihapus." + (res && res.absensi_dilepas ? " " + res.absensi_dilepas + " catatan absensi dipertahankan." : ""), "success", 5000);
       await load();
     } catch (err) {
-      U.toast(/could not find the function|does not exist/i.test(String(err && err.message))
-        ? "Fungsi hapus semester belum ada. Jalankan supabase/update-hapus-tahun-semester.sql."
-        : API.errorMessage(err), "error", 8000);
+      U.toast(API.errorMessage(err), "error", 8000);
     }
   }
 
@@ -373,11 +372,7 @@
       U.toast("Tahun ajaran dihapus." + (res && res.absensi_dilepas ? " " + res.absensi_dilepas + " catatan absensi dipertahankan." : ""), "success", 5000);
       await load();
     } catch (err) {
-      if (/could not find the function|does not exist/i.test(String(err && err.message))) {
-        U.toast("Fungsi hapus tahun ajaran belum ada. Jalankan supabase/update-hapus-tahun-semester.sql.", "error", 8000);
-      } else {
-        U.toast(API.errorMessage(err), "error");
-      }
+      U.toast(API.errorMessage(err), "error", 8000);
     }
   }
 
@@ -403,6 +398,25 @@
       paint();
     });
     U.$("#year-archive-old", container).addEventListener("click", archiveOld);
+
+    // Diagnosa: pastikan fungsi hapus tersedia di database.
+    var diag = U.$("#year-diag", container);
+    if (diag) {
+      diag.addEventListener("click", async function () {
+        U.buttonLoading(diag, true);
+        try {
+          var ok = await API.checkDeleteFunctions();
+          U.toast(ok.delete_semester && ok.delete_academic_year
+            ? "Fungsi hapus tahun ajaran & semester tersedia."
+            : "Fungsi belum tersedia. Jalankan supabase/update-hapus-tahun-semester.sql di SQL Editor.", 
+            ok.delete_semester && ok.delete_academic_year ? "success" : "error", 9000);
+        } catch (err) {
+          U.toast("Gagal memeriksa: " + API.errorMessage(err), "error", 8000);
+        } finally {
+          U.buttonLoading(diag, false);
+        }
+      });
+    }
 
     U.on(container, "click", "[data-act]", async function (e, btn) {
       var act = btn.dataset.act;

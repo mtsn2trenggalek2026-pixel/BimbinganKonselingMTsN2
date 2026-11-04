@@ -422,6 +422,13 @@ html[data-theme="dark"] .chip.is-active span { background: rgba(0, 0, 0, .18); c
 .rep-kegiatan-no { font-size: 12px; font-weight: 800; color: var(--muted-2); padding-top: 9px; width: 18px; flex: 0 0 auto; }
 .rep-days { padding: 12px 18px 4px; }
 .rep-pekerjaan { border-left-color: var(--teal-400); }
+.account-actions { display: flex; flex-direction: column; gap: 9px; padding: 4px 20px 20px; }
+.settings-actions .btn { justify-content: flex-start; text-align: left; }
+.settings-actions .btn svg { flex: 0 0 auto; }
+.form-section-title { margin-top: 2px; }
+#set-form .form-actions { padding: 0 20px 20px; }
+.btn-delete { color: var(--red) !important; border-color: var(--red-bg) !important; }
+.btn-delete:hover { background: var(--red-bg) !important; }
 .sem-delete { margin-left: auto; color: var(--red) !important; }
 .sem-delete:hover { background: var(--red-bg) !important; }
 

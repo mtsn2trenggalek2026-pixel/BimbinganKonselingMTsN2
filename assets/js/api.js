@@ -60,6 +60,19 @@
 
   function fail(error, fallback) {
     var msg = (error && (error.message || error.error_description || error.msg)) || fallback || "Terjadi kesalahan.";
+    var errCode = error && error.code;
+    // Fungsi database belum dibuat (migrasi terbaru belum dijalankan).
+    if (errCode === "PGRST202" || /could not find the function/i.test(msg)) {
+      var fn = (msg.match(/public\.([a-z_]+)/i) || [])[1] || "";
+      var missing = makeError(
+        "Fungsi database" + (fn ? " “" + fn + "”" : "") +
+        " belum tersedia di Supabase. Jalankan file supabase/update-hapus-tahun-semester.sql di SQL Editor, lalu muat ulang halaman.",
+        400,
+        "missing_function"
+      );
+      missing.detail = msg;
+      return missing;
+    }
     var code = (error && (error.code || error.error_code)) || "";
     var status = (error && error.status) || 0;
 
@@ -217,7 +230,8 @@
       network: "Tidak dapat terhubung ke Supabase. Periksa koneksi internet dan URL proyek.",
       invalid_password: "Password saat ini salah.",
       weak_password: "Password baru minimal 8 karakter.",
-      too_large: "Foto melebihi batas 100 KB."
+      too_large: "Foto melebihi batas 100 KB.",
+      missing_function: "Fungsi database belum tersedia. Jalankan file migrasi terbaru di Supabase SQL Editor."
     };
     if (err.code && map[err.code]) return map[err.code];
     if (err.status === 401) return map.unauthorized;
@@ -637,6 +651,16 @@
     var res = await db().rpc("delete_academic_year", { p_year_id: id });
     if (res.error) throw fail(res.error);
     return res.data || {};
+  };
+
+  /* Periksa apakah fungsi hapus sudah ada di database (tanpa mengubah data). */
+  API.checkDeleteFunctions = async function () {
+    var result = { delete_semester: false, delete_academic_year: false };
+    var probeSem = await db().rpc("delete_semester", { p_semester_id: "00000000-0000-0000-0000-000000000000" });
+    var probeYear = await db().rpc("delete_academic_year", { p_year_id: "00000000-0000-0000-0000-000000000000" });
+    result.delete_semester = !(probeSem.error && (probeSem.error.code === "PGRST202" || /could not find the function/i.test(probeSem.error.message || "")));
+    result.delete_academic_year = !(probeYear.error && (probeYear.error.code === "PGRST202" || /could not find the function/i.test(probeYear.error.message || "")));
+    return result;
   };
 
   API.deleteSemester = async function (id) {

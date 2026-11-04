@@ -75,8 +75,10 @@
                   ? U.escape(U.SEMESTER_LABEL[window.APP_STATE.activeSemester.jenis] + " · " + U.tahunAjaranLabel(window.APP_STATE.activeYear))
                   : "Belum diatur") + "</strong></div>" +
               '<div><span>Data akademik</span><strong>' + (window.APP_STATE.academicYears || []).length + " tahun ajaran</strong></div></div>" +
-            '<button type="button" class="btn btn-secondary btn-block" id="set-password">' + U.icon("lock", 17) + "<span>Ganti Password</span></button>" +
-            '<button type="button" class="btn btn-danger btn-block" id="set-logout">' + U.icon("logout", 17) + "<span>Keluar dari Akun</span></button>" +
+            '<div class="account-actions">' +
+              '<button type="button" class="btn btn-secondary btn-block" id="set-password">' + U.icon("lock", 17) + "<span>Ganti Password</span></button>" +
+              '<button type="button" class="btn btn-danger btn-block" id="set-logout">' + U.icon("logout", 17) + "<span>Keluar dari Akun</span></button>" +
+            "</div>" +
           "</div>" +
           '<div class="card">' +
             '<div class="card-head"><div><h3>Data &amp; Template</h3><p>Alat bantu pengelolaan data.</p></div></div>' +
@@ -106,6 +108,16 @@
       "</div>";
 
     bind();
+
+    // Isi ulang bila data pengaturan dari server selesai dimuat.
+    if (!window.APP_STATE.settingsLoaded) {
+      API.getSettings().then(function (st) {
+        if (!st) return;
+        window.APP_STATE.settings = st;
+        window.APP_STATE.settingsLoaded = true;
+        if (state.container && state.container.isConnected) render(state.container);
+      }).catch(function () { /* abaikan */ });
+    }
   }
 
   function openPasswordModal() {

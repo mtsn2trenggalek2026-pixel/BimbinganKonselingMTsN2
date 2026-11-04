@@ -6,7 +6,8 @@
 --    2. Copy SELURUH isi file ini, tempel, lalu klik "Run"
 --
 --  YANG DIHAPUS:
---    - semua siswa (beserta foto di Storage)
+--    - semua siswa (foto di Storage dihapus lewat menu Storage,
+--      karena tabel storage.objects dilindungi Supabase)
 --    - semua riwayat absensi
 --    - semua laporan kerja + rincian kegiatan
 --    - semua kelulusan & riwayat kelas
@@ -45,14 +46,15 @@ delete from public.academic_years;
 -- 5. Data siswa
 delete from public.students;
 
--- 6. Foto siswa di Storage (abaikan bila bucket belum ada)
-do $$
-begin
-  if exists (select 1 from storage.buckets where id = 'siswa-foto') then
-    delete from storage.objects where bucket_id = 'siswa-foto';
-  end if;
-end;
-$$;
+-- 6. Kosongkan tautan foto pada profil siswa (berkas foto TIDAK bisa
+--    dihapus lewat SQL — Storage melindungi tabel storage.objects).
+--    Lihat catatan "HAPUS FOTO" di bawah file ini.
+--    (Data siswa sudah dihapus, jadi baris ini hanya jaring pengaman.)
+update public.students
+   set foto_path = null,
+       foto_ukuran = null,
+       foto_uploaded_at = null
+ where foto_path is not null;
 
 commit;
 
@@ -71,6 +73,43 @@ select
   (select count(*) from public.graduations)       as kelulusan,
   (select count(*) from storage.objects
      where bucket_id = 'siswa-foto')              as foto;
+
+-- ============================================================
+--  HAPUS FOTO DI STORAGE (manual, di luar SQL)
+--  ------------------------------------------------------------
+--  Supabase memblokir "delete from storage.objects"
+--  (error 42501: Direct deletion from storage tables is not
+--  allowed). Hapus foto lewat salah satu cara:
+--
+--  A. Dashboard (paling mudah)
+--     1. Menu "Storage" > bucket "siswa-foto"
+--     2. Klik folder pertama, tahan Shift + klik folder terakhir
+--     3. Klik "Delete" > konfirmasi
+--
+--  B. Lewat aplikasi
+--     1. Login sebagai admin/superadmin
+--     2. Buka data siswa satu per satu > Edit > Hapus foto
+--        (tidak praktis bila siswanya banyak)
+--
+--  C. Lewat API (service_role key, JANGAN ditaruh di website)
+--     Simpan sebagai file bernama hapus-foto.mjs lalu jalankan
+--     "node hapus-foto.mjs" di komputer Anda:
+--
+--       import { createClient } from "@supabase/supabase-js";
+--       const sb = createClient("https://mhjvebnxsutwbudjwmud.supabase.co",
+--         "ISI_SERVICE_ROLE_KEY");
+--       const { data: folders } = await sb.storage.from("siswa-foto").list("", { limit: 1000 });
+--       for (const f of folders || []) {
+--         const { data: files } = await sb.storage.from("siswa-foto").list(f.name, { limit: 1000 });
+--         const paths = (files || []).map(x => f.name + "/" + x.name);
+--         if (paths.length) await sb.storage.from("siswa-foto").remove(paths);
+--         await sb.storage.from("siswa-foto").remove([f.name]).catch(() => {});
+--       }
+--       console.log("Foto siswa dihapus.");
+--
+--  Foto yang tertinggal tidak memengaruhi aplikasi; hanya memakan
+--  sedikit ruang Storage dan bisa dihapus kapan saja.
+-- ============================================================
 
 -- ============================================================
 --  SETELAH DATA KOSONG

@@ -148,6 +148,8 @@ Jalankan supabase\reset-semua-data.sql di SQL Editor Supabase.
 Menghapus: siswa, absensi, laporan kerja, kelulusan, riwayat
 kelas, rombel, semester, tahun ajaran, dan foto siswa.
 TIDAK menghapus: akun login dan pengaturan madrasah.
+Foto siswa di Storage dihapus manual: menu Storage > siswa-foto
+> pilih semua folder > Delete (SQL tidak diizinkan menghapusnya).
 Permanen - buat cadangan lebih dahulu.
 
 

@@ -507,6 +507,11 @@ dan tahun ajaran (satu transaksi). **Akun login dan pengaturan madrasah tidak
 dihapus.** File berakhir dengan query pemeriksaan — semua angka harus `0`.
 Setelah itu buat kembali tahun ajaran dari menu **Tahun & Semester**.
 
+> **Foto siswa di Storage** tidak dapat dihapus lewat SQL — Supabase menolak
+> `delete from storage.objects` dengan error `42501`. Hapus manual lewat
+> **Storage → siswa-foto** di dashboard (petunjuk lengkap ada di akhir file
+> `reset-semua-data.sql`). Foto yang tertinggal tidak mengganggu aplikasi.
+
 ### Pemulihan
 1. Buka **SQL Editor**.
 2. Jalankan `supabase/schema.sql` (membuat ulang struktur yang belum ada).

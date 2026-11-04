@@ -238,6 +238,7 @@ while ($true) {
                 Write-Log "Menunggu 30 detik sebelum mencoba lagi." "WARN"
             }
             $pendingSince = $null
+            $lastStatus = ""
         }
     }
 

@@ -101,9 +101,12 @@ FITUR
   Tahun & Semester, Kelulusan, Laporan Kerja, Data Siswa, Akun, Pengaturan.
 - Peran Guru Piket: hanya menu "Dasbor Piket" dan "Absensi Siswa".
 - Peran Wali Kelas: menu "Kelas Saya" (melihat siswa kelasnya,
-  siapa masuk / tidak masuk, hanya baca).
-  Pemetaan rombel wali kelas dilakukan di Akun Admin > ikon buku.
-  Perlu jalankan supabase\update-peran-piket-walikelas.sql.
+  siapa masuk / tidak masuk, hanya baca). Satu wali kelas = satu kelas,
+  dipilih saat membuat akun.
+- Peran Guru BK: hanya mengawasi SATU TINGKAT (VII/VIII/IX),
+  dipilih saat membuat akun.
+  Perlu jalankan supabase\update-peran-piket-walikelas.sql dan
+  supabase\update-tingkat-gurubk-walikelas.sql.
 - Rombel dapat ditambah, diubah, dan dihapus di halaman Kelas.
   Saat rombel dihapus, siswanya dipindah ke rombel lain (data tetap aman).
 - Tampilan responsif untuk komputer, tablet, dan HP.

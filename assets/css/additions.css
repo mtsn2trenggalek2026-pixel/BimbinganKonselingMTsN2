@@ -424,6 +424,27 @@ html[data-theme="dark"] .chip.is-active span { background: rgba(0, 0, 0, .18); c
 .rep-pekerjaan { border-left-color: var(--teal-400); }
 .account-actions { display: flex; flex-direction: column; gap: 9px; padding: 4px 20px 20px; }
 
+/* ---------- Pilihan peran (akun) ---------- */
+.role-extra {
+  border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  background: var(--panel-2); display: flex; flex-direction: column; gap: 8px;
+}
+.role-extra-label { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; color: var(--text-soft); }
+.level-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.level-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--panel);
+  padding: 10px 6px; color: var(--text-soft);
+}
+.level-opt strong { font-size: 14px; font-weight: 800; letter-spacing: .02em; }
+.level-opt small { font-size: 10px; color: var(--muted); }
+.level-opt:hover { border-color: var(--teal-400); }
+.level-opt.is-active { background: var(--teal-700); border-color: var(--teal-700); color: #fff; }
+.level-opt.is-active small { color: rgba(255, 255, 255, .8); }
+html[data-theme="dark"] .level-opt.is-active { color: #062a26; }
+html[data-theme="dark"] .level-opt.is-active small { color: rgba(0, 0, 0, .6); }
+html[data-theme="dark"] .role-extra { background: var(--panel); border-color: var(--border); }
+
 /* ---------- Wali kelas & guru piket ---------- */
 .wk-info {
   display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 12px;

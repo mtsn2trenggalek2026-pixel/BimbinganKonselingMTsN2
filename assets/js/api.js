@@ -609,6 +609,17 @@
     return res.data;
   };
 
+  /* Tingkat pengawasan guru BK yang sedang login (null = semua tingkat). */
+  API.getMyTingkat = async function () {
+    try {
+      var res = await db().from("profiles").select("tingkat").eq("id", API.user.id).maybeSingle();
+      if (res.error) return API.user.tingkat || null;
+      return res.data ? res.data.tingkat : (API.user.tingkat || null);
+    } catch (e) {
+      return API.user.tingkat || null;
+    }
+  };
+
   API.getSemuaWaliKelas = async function () {
     var res = await db()
       .from("wali_kelas")
@@ -1019,12 +1030,15 @@
     return res.data || [];
   };
 
-  API.createAccount = async function (email, password, fullName, role) {
+  API.createAccount = async function (email, password, fullName, role, opts) {
+    var o = opts || {};
     var res = await db().rpc("admin_create_account", {
       p_email: text(email),
       p_password: password,
       p_full_name: text(fullName),
-      p_role: role || "admin"
+      p_role: role || "admin",
+      p_tingkat: o.tingkat ? Number(o.tingkat) : null,
+      p_class_group_id: o.class_group_id || null
     });
     if (res.error) throw fail(res.error);
     return res.data;
@@ -1037,7 +1051,9 @@
       p_full_name: "full_name" in p ? text(p.full_name) : null,
       p_role: "role" in p ? p.role : null,
       p_aktif: "aktif" in p ? Boolean(p.aktif) : null,
-      p_password: "password" in p ? p.password : null
+      p_password: "password" in p ? p.password : null,
+      p_tingkat: "tingkat" in p ? (p.tingkat ? Number(p.tingkat) : null) : null,
+      p_class_group_id: p.class_group_id || null
     });
     if (res.error) throw fail(res.error);
     return { updated: true };

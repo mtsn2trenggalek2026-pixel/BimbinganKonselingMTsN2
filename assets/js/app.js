@@ -215,6 +215,12 @@
     state.dbError = null;
     try { state.settings = (await API.getSettings()) || {}; } catch (err) { state.settings = {}; }
     try { state.profile = await API.getProfile(); } catch (err) { state.profile = null; }
+    // Tingkat pengawasan guru BK (dipakai di halaman Kelas & absensi).
+    state.myTingkat = null;
+    if (state.user && state.user.role === "guru_bk") {
+      try { state.myTingkat = await API.getMyTingkat(); } catch (e) { state.myTingkat = null; }
+      if (state.myTingkat) state.myTingkat = Number(state.myTingkat) || null;
+    }
     try {
       state.students = U.sortStudents((await API.getStudents(false)) || []);
     } catch (err) {

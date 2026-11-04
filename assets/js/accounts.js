@@ -153,8 +153,22 @@
           '<option value="superadmin">Superadmin — kelola akun juga</option>' +
           '<option value="guru_bk">Guru BK — absensi, data siswa &amp; laporan</option>' +
           '<option value="guru_piket">Guru Piket — hanya mengabsen siswa</option>' +
-          '<option value="wali_kelas">Wali Kelas — melihat siswa kelasnya</option>' +
+          '<option value="wali_kelas">Wali Kelas — satu kelas, lihat kehadiran</option>' +
         "</select></div>" +
+      "</div>" +
+      '<div class="role-extra hidden" id="ac-extra-tingkat">' +
+        '<label class="role-extra-label">' + U.icon("book", 15) + "<span>Tingkat yang diawasi (Guru BK)</span></label>" +
+        '<div class="level-picker" id="ac-tingkat">' +
+          [7, 8, 9].map(function (t) {
+            return '<button type="button" class="level-opt' + (t === 7 ? " is-active" : "") + '" data-tingkat="' + t + '"><strong>' + U.TINGKAT_ROMAN[t] + "</strong><small>Kelas " + U.TINGKAT_ROMAN[t] + "</small></button>";
+          }).join("") +
+        "</div>" +
+        '<p class="form-hint">Guru BK hanya melihat absensi &amp; siswa pada tingkat ini.</p>' +
+      "</div>" +
+      '<div class="role-extra hidden" id="ac-extra-kelas">' +
+        '<label class="role-extra-label">' + U.icon("users", 15) + "<span>Kelas yang diampu (Wali Kelas)</span></label>" +
+        '<select id="ac-kelas"><option value="">— Pilih kelas —</option></select>' +
+        '<p class="form-hint">Satu wali kelas hanya mengampu satu kelas pada tahun ajaran berjalan.</p>' +
       "</div>" +
       '<p class="form-hint">Akun langsung aktif dan dapat digunakan untuk login. Sampaikan email &amp; password kepada pemilik akun.</p>' +
       "</form>";
@@ -180,13 +194,24 @@
             if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { U.toast("Format email tidak valid.", "warning"); return; }
             if (password.length < 8) { U.toast("Password minimal 8 karakter.", "warning"); return; }
 
+            var opts = {};
+            if (role === "guru_bk") {
+              var activeLevel = U.$("#ac-tingkat .level-opt.is-active", bodyEl);
+              opts.tingkat = activeLevel ? Number(activeLevel.dataset.tingkat) : 7;
+            }
+            if (role === "wali_kelas") {
+              opts.class_group_id = U.$("#ac-kelas", bodyEl).value || null;
+              if (!opts.class_group_id) { U.toast("Pilih kelas untuk wali kelas.", "warning"); return; }
+            }
+
             var btn = bodyEl.parentNode.querySelector(".modal-foot .btn-primary");
             if (btn) U.buttonLoading(btn, true);
             try {
-              await API.createAccount(email, password, nama, role);
+              await API.createAccount(email, password, nama, role, opts);
               U.toast("Akun " + email + " berhasil dibuat.", "success", 5000);
               close();
               await load();
+              await App.refreshAcademic();
             } catch (err) {
               U.toast(API.errorMessage(err), "error");
             } finally {
@@ -194,8 +219,40 @@
             }
           }
         }
-      ]
+      ],
+      onMount: function (bodyEl) {
+        var roleSel = U.$("#ac-role", bodyEl);
+        var extraTingkat = U.$("#ac-extra-tingkat", bodyEl);
+        var extraKelas = U.$("#ac-extra-kelas", bodyEl);
+
+        function syncRole() {
+          var role = roleSel.value;
+          extraTingkat.classList.toggle("hidden", role !== "guru_bk");
+          extraKelas.classList.toggle("hidden", role !== "wali_kelas");
+          if (role === "wali_kelas") fillClassSelect(U.$("#ac-kelas", bodyEl));
+        }
+        roleSel.addEventListener("change", syncRole);
+        U.on(extraTingkat, "click", ".level-opt", function (e, btn) {
+          U.$$(".level-opt", extraTingkat).forEach(function (b) { b.classList.remove("is-active"); });
+          btn.classList.add("is-active");
+        });
+        syncRole();
+      }
     });
+  }
+
+  /* Daftar rombel pada tahun ajaran berjalan untuk pilihan wali kelas. */
+  async function fillClassSelect(select) {
+    if (!select || select.dataset.filled === "1") return;
+    var year = window.APP_STATE.activeYear;
+    if (!year) return;
+    try {
+      var list = await API.getClassGroups(year.id, false);
+      select.innerHTML = '<option value="">— Pilih kelas —</option>' + (list || [])
+        .sort(function (a, b) { return String(a.nama).localeCompare(String(b.nama), "id", { numeric: true }); })
+        .map(function (c) { return '<option value="' + U.escape(c.id) + '">' + U.escape(c.nama) + "</option>"; }).join("");
+      select.dataset.filled = "1";
+    } catch (e) { /* abaikan */ }
   }
 
   function openEdit(a) {
@@ -214,6 +271,20 @@
           '<option value="false"' + (a.aktif === false ? " selected" : "") + ">Nonaktif</option>" +
         "</select></div>" +
       "</div>" +
+      (self ? "" :
+        '<div class="role-extra hidden" id="ae-extra-tingkat">' +
+          '<label class="role-extra-label">' + U.icon("book", 15) + "<span>Tingkat yang diawasi (Guru BK)</span></label>" +
+          '<div class="level-picker" id="ae-tingkat">' +
+            [7, 8, 9].map(function (t) {
+              return '<button type="button" class="level-opt' + (Number(a.tingkat) === t ? " is-active" : "") + '" data-tingkat="' + t + '"><strong>' + U.TINGKAT_ROMAN[t] + "</strong><small>Kelas " + U.TINGKAT_ROMAN[t] + "</small></button>";
+            }).join("") +
+          "</div>" +
+        "</div>" +
+        '<div class="role-extra hidden" id="ae-extra-kelas">' +
+          '<label class="role-extra-label">' + U.icon("users", 15) + "<span>Kelas yang diampu (Wali Kelas)</span></label>" +
+          '<select id="ae-kelas"><option value="">— Tidak diubah —</option></select>' +
+          '<p class="form-hint">Pilih kelas untuk mengganti kelas yang diampu.</p>' +
+        "</div>") +
       (self ? '<p class="form-hint">Anda tidak dapat mengubah peran atau menonaktifkan akun sendiri.</p>' : "") +
       "</form>";
 
@@ -234,6 +305,14 @@
             if (!self) {
               patch.role = U.$("#ae-role", bodyEl).value;
               patch.aktif = U.$("#ae-aktif", bodyEl).value === "true";
+              if (patch.role === "guru_bk") {
+                var lvl = U.$("#ae-tingkat .level-opt.is-active", bodyEl);
+                patch.tingkat = lvl ? Number(lvl.dataset.tingkat) : null;
+              }
+              if (patch.role === "wali_kelas") {
+                var kls = U.$("#ae-kelas", bodyEl);
+                if (kls && kls.value) patch.class_group_id = kls.value;
+              }
             }
             var btn = bodyEl.parentNode.querySelector(".modal-foot .btn-primary");
             if (btn) U.buttonLoading(btn, true);
@@ -249,7 +328,25 @@
             }
           }
         }
-      ]
+      ],
+      onMount: function (bodyEl) {
+        if (self) return;
+        var roleSel = U.$("#ae-role", bodyEl);
+        var extraTingkat = U.$("#ae-extra-tingkat", bodyEl);
+        var extraKelas = U.$("#ae-extra-kelas", bodyEl);
+        function syncRole() {
+          var role = roleSel.value;
+          extraTingkat.classList.toggle("hidden", role !== "guru_bk");
+          extraKelas.classList.toggle("hidden", role !== "wali_kelas");
+          if (role === "wali_kelas") fillClassSelect(U.$("#ae-kelas", bodyEl));
+        }
+        roleSel.addEventListener("change", syncRole);
+        U.on(extraTingkat, "click", ".level-opt", function (e, btn) {
+          U.$$(".level-opt", extraTingkat).forEach(function (b) { b.classList.remove("is-active"); });
+          btn.classList.add("is-active");
+        });
+        syncRole();
+      }
     });
   }
 
@@ -400,6 +497,7 @@
               if (!sel || !sel.value) return;
               try {
                 await API.setWaliKelas(account.id, sel.value);
+                await load();
                 U.toast("Rombel ditambahkan untuk wali kelas.", "success");
                 close2();
                 openWaliKelas(account);

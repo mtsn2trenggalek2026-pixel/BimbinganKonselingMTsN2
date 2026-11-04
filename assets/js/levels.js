@@ -258,7 +258,9 @@
         '<span class="lvl-sem">' + U.icon("calendar", 15) + "<span>" + U.escape(semLabel) + "</span></span>" +
       "</div>" +
 
-      '<div class="lvl-grid">' + [7, 8, 9].map(levelCard).join("") + "</div>" +
+      '<div class="lvl-grid">' + (window.APP_STATE.myTingkat && !API.isAdmin()
+        ? levelCard(Number(window.APP_STATE.myTingkat))
+        : [7, 8, 9].map(levelCard).join("")) + "</div>" +
 
       '<div class="lvl-panel">' +
         '<div class="lvl-panel-head">' +
@@ -304,6 +306,9 @@
       ]);
       if (token !== state.token) return;
       state.classes = res[0] || [];
+      // Guru BK hanya mengawasi satu tingkat.
+      var myTingkat = window.APP_STATE.myTingkat;
+      if (myTingkat && !API.isAdmin()) state.tingkat = Number(myTingkat);
       state.history = res[1] || [];
       state.students = res[2] || [];
       state.semesters = res[3] || [];

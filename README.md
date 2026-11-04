@@ -471,7 +471,7 @@ website/
   |---|---|
   | `superadmin` | Semua hak admin + membuat/mengubah/menonaktifkan/menghapus akun |
   | `admin` | Kelola siswa, rombel, tahun ajaran, kenaikan kelas, kelulusan, foto |
-  | `guru_bk` | Absensi, rekap, laporan kerja, lihat data siswa (baca saja) |
+  | `guru_bk` | Absensi, rekap, laporan kerja — **hanya satu tingkat** (VII/VIII/IX) |
   | `guru_piket` | **Dasbor Piket** + **Absensi Siswa** saja (mengabsen masuk/tidak masuk) |
   | `wali_kelas` | **Kelas Saya**: melihat siswa rombel yang diampu + siapa masuk/tidak masuk (baca saja) |
 
@@ -489,10 +489,20 @@ website/
   (Masuk / Alpa / Sakit / Izin / Belum diabsen), jumlah hadir semester,
   dan persentase kehadiran.
 - Hanya baca — tidak bisa mengubah absensi.
-- Pemetaan akun wali kelas ke rombel dilakukan admin/superadmin di
-  **Akun Admin → ikon buku (Atur rombel wali kelas)**. Satu akun dapat
-  dipetakan ke beberapa rombel.
-- Memerlukan migrasi `supabase/migrations/20261107090000_peran_piket_walikelas.sql`.
+- Pemetaan akun wali kelas ke rombel dilakukan saat membuat akun
+  (**Akun Admin → Akun Baru → peran Wali Kelas → pilih kelas**) atau lewat
+  ikon buku pada baris akun.
+- **Satu wali kelas hanya mengampu satu kelas per tahun ajaran.** Memilih kelas
+  lain akan menggantikan kelas sebelumnya.
+- Memerlukan migrasi `supabase/migrations/20261107090000_peran_piket_walikelas.sql`
+  dan `20261110090000_tingkat_gurubk_walikelas.sql`
+  (atau jalankan `supabase/update-tingkat-gurubk-walikelas.sql`).
+
+### Guru BK — satu tingkat
+- Saat membuat akun peran **Guru BK**, pilih **tingkat** (VII / VIII / IX).
+- Guru BK hanya melihat dan mengabsen siswa pada tingkat tersebut
+  (halaman Kelas, Absensi, dan Rekap otomatis terfilter).
+- Admin/superadmin tetap melihat semua tingkat.
 - RPC akun (`admin_*`) memakai `security definer` dan memeriksa
   `is_superadmin()` di server, sehingga guru BK tidak dapat membuat/menghapus akun
   walaupun memanggil API langsung.

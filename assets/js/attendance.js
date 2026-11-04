@@ -37,7 +37,9 @@
   }
 
   function shell() {
-    var classes = U.uniqueClasses(state.students);
+    var classes = U.uniqueClasses(window.APP_STATE.myTingkat
+      ? state.students.filter(function (s) { return U.kelasTingkat(s.kelas) === Number(window.APP_STATE.myTingkat); })
+      : state.students);
     return '' +
       '<div class="page-head">' +
         '<div><h1>Absensi Kehadiran</h1><p>Catat kehadiran siswa per hari. Pilih <strong>Masuk</strong> atau <strong>Tidak Masuk</strong> beserta keterangannya.</p></div>' +
@@ -87,7 +89,9 @@
   }
 
   function getClassStudents() {
-    return state.students.filter(function (s) {
+    var myTingkat = window.APP_STATE.myTingkat;
+    var list = myTingkat ? state.students.filter(function (s) { return U.kelasTingkat(s.kelas) === Number(myTingkat); }) : state.students;
+    return list.filter(function (s) {
       if (state.kelas) return s.kelas === state.kelas;
       if (state.tingkat) return U.kelasTingkat(s.kelas) === Number(state.tingkat);
       return true;

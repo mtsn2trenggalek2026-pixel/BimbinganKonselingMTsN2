@@ -30,7 +30,10 @@
     laporan: "reports",
     siswa: "students",
     akun: "accounts",
-    pengaturan: "settings"
+    pengaturan: "settings",
+    piket: "piket",
+    "piket-absen": "piketAbsen",
+    "wali-kelas": "waliKelas"
   };
 
   function pageModule(key) {
@@ -59,16 +62,38 @@
     laporan: { title: "Laporan Kerja", render: pageRender("laporan") },
     siswa: { title: "Data Siswa", render: pageRender("siswa") },
     akun: { title: "Akun Admin", render: pageRender("akun") },
-    pengaturan: { title: "Pengaturan", render: pageRender("pengaturan") }
+    pengaturan: { title: "Pengaturan", render: pageRender("pengaturan") },
+    piket: { title: "Dasbor Guru Piket", render: pageRender("piket") },
+    "piket-absen": { title: "Absensi Kehadiran", render: pageRender("piket-absen") },
+    "wali-kelas": { title: "Kelas Saya", render: pageRender("wali-kelas") }
   };
 
-  /* Menu yang hanya tampil untuk peran tertentu. */
+  /* Peran yang tersedia untuk setiap halaman.
+     Bila tidak tercantum -> semua peran boleh. */
   var PAGE_ROLES = {
     akun: ["superadmin"],
     tahun: ["superadmin", "admin"],
     tingkat: ["superadmin", "admin"],
-    lulus: ["superadmin", "admin"]
+    lulus: ["superadmin", "admin"],
+    laporan: ["superadmin", "admin", "guru_bk"],
+    siswa: ["superadmin", "admin", "guru_bk"],
+    rekap: ["superadmin", "admin", "guru_bk"],
+    absensi: ["superadmin", "admin", "guru_bk"],
+    piket: ["guru_piket"],
+    "piket-absen": ["superadmin", "admin", "guru_bk", "guru_piket"],
+    "wali-kelas": ["wali_kelas"]
   };
+
+  /* Halaman awal sesuai peran setelah login. */
+  var HOME_ROUTE = {
+    guru_piket: "piket",
+    wali_kelas: "wali-kelas"
+  };
+
+  function homeRoute() {
+    var role = (state.user && state.user.role) || "guru_bk";
+    return HOME_ROUTE[role] || "dashboard";
+  }
 
   function $(sel) { return document.querySelector(sel); }
 
@@ -176,7 +201,9 @@
       U.loading(false);
     }
 
-    var target = window.location.hash && window.location.hash.indexOf("#/") === 0 ? window.location.hash : "#/dashboard";
+    var hash = window.location.hash || "";
+    var keepHash = hash.indexOf("#/") === 0 && canSee(currentRoute());
+    var target = keepHash ? hash : "#/" + homeRoute();
     if (window.location.hash !== target) {
       window.location.hash = target;
     } else {
@@ -232,6 +259,7 @@
   }
 
   function canSee(route) {
+    if (route === "dashboard") return true;
     var allowed = PAGE_ROLES[route];
     if (!allowed) return true;
     return allowed.indexOf((state.user && state.user.role) || "guru_bk") !== -1;
@@ -242,6 +270,23 @@
     U.$$("[data-role-menu]").forEach(function (el) {
       var route = el.getAttribute("data-role-menu");
       el.classList.toggle("hidden", !canSee(route));
+    });
+    // Menu tanpa data-role-menu: sembunyikan bila tidak diizinkan.
+    U.$$(".nav-link[data-route]").forEach(function (el) {
+      var route = el.getAttribute("data-route");
+      if (!el.hasAttribute("data-role-menu")) {
+        el.classList.toggle("hidden", !canSee(route));
+      }
+    });
+    U.$$(".nav-section").forEach(function (sec) {
+      var siblings = [];
+      var node = sec.nextElementSibling;
+      while (node && !node.classList.contains("nav-section")) {
+        if (node.classList.contains("nav-link")) siblings.push(node);
+        node = node.nextElementSibling;
+      }
+      var anyVisible = siblings.some(function (a) { return !a.classList.contains("hidden"); });
+      sec.classList.toggle("hidden", !anyVisible);
     });
     var badge = $("#sidebar-role");
     if (badge) {

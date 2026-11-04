@@ -99,6 +99,11 @@ FITUR
   supabase\update-hapus-tahun-semester.sql di SQL Editor Supabase.
 - Menu navigasi: Dasbor, Absensi, Rekap Absensi, Kelas (tanpa A/B/C),
   Tahun & Semester, Kelulusan, Laporan Kerja, Data Siswa, Akun, Pengaturan.
+- Peran Guru Piket: hanya menu "Dasbor Piket" dan "Absensi Siswa".
+- Peran Wali Kelas: menu "Kelas Saya" (melihat siswa kelasnya,
+  siapa masuk / tidak masuk, hanya baca).
+  Pemetaan rombel wali kelas dilakukan di Akun Admin > ikon buku.
+  Perlu jalankan supabase\update-peran-piket-walikelas.sql.
 - Rombel dapat ditambah, diubah, dan dihapus di halaman Kelas.
   Saat rombel dihapus, siswanya dipindah ke rombel lain (data tetap aman).
 - Tampilan responsif untuk komputer, tablet, dan HP.

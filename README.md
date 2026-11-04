@@ -467,11 +467,32 @@ website/
 - Semua tabel memakai **Row Level Security**: hanya pengguna `authenticated`
   dengan profil aktif (`profiles.aktif = true`) yang dapat membaca/menulis.
 - **Peran**:
-  | Peran | Hak |
+  | Peran | Menu / hak |
   |---|---|
   | `superadmin` | Semua hak admin + membuat/mengubah/menonaktifkan/menghapus akun |
   | `admin` | Kelola siswa, rombel, tahun ajaran, kenaikan kelas, kelulusan, foto |
   | `guru_bk` | Absensi, rekap, laporan kerja, lihat data siswa (baca saja) |
+  | `guru_piket` | **Dasbor Piket** + **Absensi Siswa** saja (mengabsen masuk/tidak masuk) |
+  | `wali_kelas` | **Kelas Saya**: melihat siswa rombel yang diampu + siapa masuk/tidak masuk (baca saja) |
+
+### Dasbor Guru Piket
+- Menu yang tampil hanya **Dasbor Piket** dan **Absensi Siswa**.
+- Ringkasan hari ini: jumlah siswa, masuk, tidak masuk, rekap per kelas.
+- Halaman absensi: pilih tanggal & kelas, tombol Masuk / Tidak Masuk
+  (Alpa, Sakit, Izin), **Semua Masuk**, lalu **Simpan Absensi**
+  (juga tersimpan otomatis 1,2 detik setelah perubahan).
+- Tidak dapat membuka data siswa, laporan kerja, tahun ajaran, atau pengaturan.
+
+### Dasbor Wali Kelas
+- Menu yang tampil: **Kelas Saya**.
+- Menampilkan siswa di rombel yang diampu: nama, status hari ini
+  (Masuk / Alpa / Sakit / Izin / Belum diabsen), jumlah hadir semester,
+  dan persentase kehadiran.
+- Hanya baca — tidak bisa mengubah absensi.
+- Pemetaan akun wali kelas ke rombel dilakukan admin/superadmin di
+  **Akun Admin → ikon buku (Atur rombel wali kelas)**. Satu akun dapat
+  dipetakan ke beberapa rombel.
+- Memerlukan migrasi `supabase/migrations/20261107090000_peran_piket_walikelas.sql`.
 - RPC akun (`admin_*`) memakai `security definer` dan memeriksa
   `is_superadmin()` di server, sehingga guru BK tidak dapat membuat/menghapus akun
   walaupun memanggil API langsung.

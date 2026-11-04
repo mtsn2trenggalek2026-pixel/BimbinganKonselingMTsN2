@@ -572,7 +572,57 @@
   };
 
   API.roleLabel = function (role) {
-    return { superadmin: "Superadmin", admin: "Admin", guru_bk: "Guru BK" }[role] || role || "-";
+    return {
+      superadmin: "Superadmin",
+      admin: "Admin",
+      guru_bk: "Guru BK",
+      guru_piket: "Guru Piket",
+      wali_kelas: "Wali Kelas"
+    }[role] || role || "-";
+  };
+
+  API.isGuruPiket = function () {
+    return Boolean(API.user && API.user.role === "guru_piket");
+  };
+
+  API.isWaliKelas = function () {
+    return Boolean(API.user && API.user.role === "wali_kelas");
+  };
+
+  /* ---------------- WALI KELAS ---------------- */
+
+  API.getWaliKelasSaya = async function () {
+    var res = await db().rpc("wali_kelas_saya");
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  API.setWaliKelas = async function (userId, classGroupId) {
+    var res = await db().rpc("wali_kelas_set", { p_user_id: userId, p_class_group_id: classGroupId });
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.deleteWaliKelas = async function (id) {
+    var res = await db().rpc("wali_kelas_hapus", { p_id: id });
+    if (res.error) throw fail(res.error);
+    return res.data;
+  };
+
+  API.getSemuaWaliKelas = async function () {
+    var res = await db()
+      .from("wali_kelas")
+      .select("id, user_id, academic_year_id, class_group_id, created_at")
+      .order("created_at", { ascending: true });
+    if (res.error) throw fail(res.error);
+    return res.data || [];
+  };
+
+  /* Absensi satu tanggal dalam satu panggilan (dipakai guru piket & wali kelas). */
+  API.getAbsensiHariIni = async function (tanggal) {
+    var res = await db().rpc("absensi_hari_ini", { p_tanggal: tanggal });
+    if (res.error) throw fail(res.error);
+    return res.data || [];
   };
 
   /* ============================================================

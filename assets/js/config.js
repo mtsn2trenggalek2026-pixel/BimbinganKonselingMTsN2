@@ -28,5 +28,5 @@ window.BK_CONFIG = {
   DEFAULT_GURU_NIP: "NIP. 197902092025212006",
   DEFAULT_GURU_JABATAN: "Guru Bimbingan Konseling",
 
-  VERSION: "4.4.0"
+  VERSION: "5.0.0"
 };

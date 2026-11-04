@@ -38,6 +38,8 @@
     var label = API.roleLabel(role);
     if (role === "superadmin") return '<span class="badge badge-super">' + label + "</span>";
     if (role === "admin") return '<span class="badge badge-admin">' + label + "</span>";
+    if (role === "guru_piket") return '<span class="badge badge-info">' + label + "</span>";
+    if (role === "wali_kelas") return '<span class="badge badge-success">' + label + "</span>";
     return '<span class="badge badge-neutral">' + label + "</span>";
   }
 
@@ -51,6 +53,7 @@
     return '<div class="page-head">' +
         '<div><h1>Akun Admin</h1><p>Kelola akun pengguna aplikasi. Hanya <strong>superadmin</strong> yang dapat membuat, mengubah, menonaktifkan, dan menghapus akun.</p></div>' +
         '<div class="page-actions">' +
+          '<button type="button" class="btn btn-secondary" id="acc-wali-map">' + U.icon("book", 17) + "<span>Daftar Wali Kelas</span></button>" +
           '<button type="button" class="btn btn-primary" id="acc-add">' + U.icon("plus", 17) + "<span>Akun Baru</span></button>" +
         "</div>" +
       "</div>" +
@@ -64,7 +67,7 @@
         '<div class="filter-row">' +
           '<div class="field grow"><label for="acc-search">Cari akun</label><div class="input-with-icon">' + U.icon("search", 17) + '<input type="search" id="acc-search" value="' + U.escape(state.search) + '" placeholder="Nama atau email…" autocomplete="off"></div></div>' +
           '<div class="field"><label for="acc-role">Peran</label><select id="acc-role">' +
-            ["", "superadmin", "admin", "guru_bk"].map(function (r) {
+            ["", "superadmin", "admin", "guru_bk", "guru_piket", "wali_kelas"].map(function (r) {
               return '<option value="' + r + '"' + (state.role === r ? " selected" : "") + ">" + (r ? API.roleLabel(r) : "Semua peran") + "</option>";
             }).join("") +
           "</select></div>" +
@@ -103,6 +106,7 @@
         '<td class="col-actions"><div class="action-group">' +
           '<button type="button" class="icon-btn" data-act="edit" title="Ubah akun">' + U.icon("edit", 16) + "</button>" +
           '<button type="button" class="icon-btn" data-act="password" title="Reset password">' + U.icon("lock", 16) + "</button>" +
+          '<button type="button" class="icon-btn" data-act="kelas" title="Atur rombel wali kelas">' + U.icon("book", 16) + "</button>" +
           (self ? "" :
             '<button type="button" class="icon-btn ' + (a.aktif === false ? "icon-success" : "icon-danger") + '" data-act="toggle" title="' + (a.aktif === false ? "Aktifkan" : "Nonaktifkan") + '">' +
             U.icon(a.aktif === false ? "check" : "x", 16) + "</button>" +
@@ -147,7 +151,9 @@
         '<div class="field"><label for="ac-role">Peran</label><select id="ac-role">' +
           '<option value="admin" selected>Admin — kelola seluruh data</option>' +
           '<option value="superadmin">Superadmin — kelola akun juga</option>' +
-          '<option value="guru_bk">Guru BK — absensi &amp; laporan</option>' +
+          '<option value="guru_bk">Guru BK — absensi, data siswa &amp; laporan</option>' +
+          '<option value="guru_piket">Guru Piket — hanya mengabsen siswa</option>' +
+          '<option value="wali_kelas">Wali Kelas — melihat siswa kelasnya</option>' +
         "</select></div>" +
       "</div>" +
       '<p class="form-hint">Akun langsung aktif dan dapat digunakan untuk login. Sampaikan email &amp; password kepada pemilik akun.</p>' +
@@ -199,7 +205,7 @@
         '<div class="field span-2"><label for="ae-nama">Nama lengkap</label><input type="text" id="ae-nama" value="' + U.escape(a.full_name || "") + '"></div>' +
         '<div class="field span-2"><label for="ae-email">Email</label><input type="text" id="ae-email" value="' + U.escape(a.email || "") + '" disabled></div>' +
         '<div class="field"><label for="ae-role">Peran</label><select id="ae-role"' + (self ? " disabled" : "") + ">" +
-          ["superadmin", "admin", "guru_bk"].map(function (r) {
+          ["superadmin", "admin", "guru_bk", "guru_piket", "wali_kelas"].map(function (r) {
             return '<option value="' + r + '"' + (a.role === r ? " selected" : "") + ">" + API.roleLabel(r) + "</option>";
           }).join("") +
         "</select></div>" +
@@ -334,7 +340,118 @@
       else if (act === "password") openPassword(a);
       else if (act === "toggle") toggle(a);
       else if (act === "delete") remove(a);
+      else if (act === "kelas") openWaliKelas(a);
     });
+    var wkBtn = U.$("#acc-wali-map", container);
+    if (wkBtn) wkBtn.addEventListener("click", openPetaKelas);
+  }
+
+  /* ---------------- WALI KELAS ---------------- */
+
+  async function openWaliKelas(account) {
+    U.loading(true, "Memuat rombel…");
+    try {
+      var years = (window.APP_STATE.academicYears || []).slice();
+      var classes = [];
+      for (var i = 0; i < years.length; i++) {
+        var list = await API.getClassGroups(years[i].id, true);
+        (list || []).forEach(function (c) {
+          if (c.is_aktif === false) return;
+          var y = years.filter(function (x) { return x.id === c.academic_year_id; })[0];
+          c._tahun = y ? U.tahunAjaranLabel(y) : "";
+          classes.push(c);
+        });
+      }
+      var all = await API.getSemuaWaliKelas();
+      var mine = (all || []).filter(function (w) { return w.user_id === account.id; });
+
+      var body = '<div class="form-stack">' +
+        '<div class="notice notice-info">' + U.icon("info", 18) + "<span><strong>" + U.escape(account.full_name || account.email) +
+          "</strong> dapat melihat siswa pada rombel yang dipilih di bawah. Login sebagai peran <strong>Wali Kelas</strong>.</span></div>" +
+        '<div class="field"><label for="wk-pick">Tambah rombel</label><select id="wk-pick">' +
+          classes.map(function (c) {
+            return '<option value="' + U.escape(c.id) + '">' + U.escape(c.nama) + " · " + U.escape(c._tahun) + "</option>";
+          }).join("") +
+        "</select></div>" +
+        (mine.length
+          ? '<div class="wk-map-list">' + mine.map(function (w) {
+              var c = classes.filter(function (x) { return x.id === w.class_group_id; })[0];
+              var y = years.filter(function (x) { return x.id === w.academic_year_id; })[0];
+              return '<div class="wk-map-item"><span>' + U.escape(c ? c.nama : "-") + " · " + U.escape(y ? U.tahunAjaranLabel(y) : "-") +
+                "</span><button type=\"button\" class=\"icon-btn icon-danger\" data-wk-del=\"" + U.escape(w.id) + '" title="Hapus">' + U.icon("trash", 15) + "</button></div>";
+            }).join("") + "</div>"
+          : '<p class="form-hint">Belum ada rombel untuk akun ini.</p>') +
+        "</div>";
+
+      U.modal({
+        title: "Atur Wali Kelas",
+        subtitle: account.email || "",
+        size: "md",
+        body: body,
+        actions: [
+          { label: "Tutup", class: "btn-secondary" },
+          {
+            label: "Tambahkan",
+            class: "btn-primary",
+            icon: "plus",
+            close: false,
+            onClick: async function (close2, o, b) {
+              var sel = U.$("#wk-pick", b);
+              if (!sel || !sel.value) return;
+              try {
+                await API.setWaliKelas(account.id, sel.value);
+                U.toast("Rombel ditambahkan untuk wali kelas.", "success");
+                close2();
+                openWaliKelas(account);
+              } catch (err) { U.toast(API.errorMessage(err), "error"); }
+            }
+          }
+        ],
+        onMount: function (b) {
+          U.on(b, "click", "[data-wk-del]", async function (e, btn) {
+            try {
+              await API.deleteWaliKelas(btn.getAttribute("data-wk-del"));
+              U.toast("Rombel dilepas.", "success");
+              U.$(".modal-close", document).click();
+              openWaliKelas(account);
+            } catch (err) { U.toast(API.errorMessage(err), "error"); }
+          });
+        }
+      });
+    } catch (err) {
+      U.toast(API.errorMessage(err), "error", 8000);
+    } finally {
+      U.loading(false);
+    }
+  }
+
+  async function openPetaKelas() {
+    U.loading(true, "Memuat wali kelas…");
+    try {
+      var all = await API.getSemuaWaliKelas();
+      var classes = await API.getClassGroups(null, true);
+      var body = '<div class="form-stack">' +
+        (all.length
+          ? '<div class="wk-map-list">' + all.map(function (w) {
+              var a = state.accounts.filter(function (x) { return x.id === w.user_id; })[0] || {};
+              var c = classes.filter(function (x) { return x.id === w.class_group_id; })[0] || {};
+              return '<div class="wk-map-item"><span><strong>' + U.escape(a.full_name || a.email || "-") + "</strong><small>" +
+                U.escape(c.nama || "-") + "</small></span></div>";
+            }).join("") + "</div>"
+          : '<p class="form-hint">Belum ada wali kelas yang dipetakan.</p>') +
+        '<p class="form-hint">Atur dari tombol <strong>kelas</strong> pada baris akun berperan Wali Kelas.</p></div>';
+      U.modal({
+        title: "Wali Kelas",
+        subtitle: "Daftar akun wali kelas beserta rombelnya.",
+        size: "md",
+        body: body,
+        actions: [{ label: "Tutup", class: "btn-secondary" }]
+      });
+    } catch (err) {
+      U.toast(API.errorMessage(err), "error", 8000);
+    } finally {
+      U.loading(false);
+    }
   }
 
   function render(container) {

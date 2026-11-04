@@ -423,6 +423,23 @@ html[data-theme="dark"] .chip.is-active span { background: rgba(0, 0, 0, .18); c
 .rep-days { padding: 12px 18px 4px; }
 .rep-pekerjaan { border-left-color: var(--teal-400); }
 .account-actions { display: flex; flex-direction: column; gap: 9px; padding: 4px 20px 20px; }
+
+/* ---------- Wali kelas & guru piket ---------- */
+.wk-info {
+  display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 12px;
+  border-radius: 10px; background: var(--blue-bg); color: var(--blue); font-size: 12px; font-weight: 600;
+}
+.wk-map-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.wk-map-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 1px solid var(--border-soft); border-radius: 10px; padding: 8px 10px;
+  background: var(--panel-2); font-size: 12.5px;
+}
+.wk-map-item small { display: block; font-size: 11px; color: var(--muted); }
+.wk-map-item strong { font-size: 12.5px; }
+.wk-table td.cell-sub, .wk-table small.cell-sub { display: block; font-size: 10.5px; color: var(--muted); }
+html[data-theme="dark"] .wk-info { background: var(--blue-bg); color: var(--blue); }
+html[data-theme="dark"] .wk-map-item { background: var(--panel-2); border-color: var(--border); }
 .settings-actions .btn { justify-content: flex-start; text-align: left; }
 .settings-actions .btn svg { flex: 0 0 auto; }
 .form-section-title { margin-top: 2px; }

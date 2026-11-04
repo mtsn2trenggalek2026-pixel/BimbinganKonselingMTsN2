@@ -714,7 +714,7 @@ begin
   if length(coalesce(p_password, '')) < 8 then
     raise exception 'Password minimal 8 karakter.' using errcode = '22023';
   end if;
-  if v_role not in ('superadmin', 'admin', 'guru_bk') then
+  if v_role not in ('superadmin', 'admin', 'guru_bk', 'guru_piket', 'wali_kelas') then
     raise exception 'Role tidak dikenal.' using errcode = '22023';
   end if;
   if exists (select 1 from auth.users u where lower(u.email) = v_email) then
@@ -779,7 +779,7 @@ begin
     raise exception 'Akun tidak ditemukan.' using errcode = 'P0002';
   end if;
 
-  if p_role is not null and p_role not in ('superadmin', 'admin', 'guru_bk') then
+  if p_role is not null and p_role not in ('superadmin', 'admin', 'guru_bk', 'guru_piket', 'wali_kelas') then
     raise exception 'Role tidak dikenal.' using errcode = '22023';
   end if;
 

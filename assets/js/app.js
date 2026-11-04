@@ -19,17 +19,47 @@
     route: ""
   };
 
+  /* Nama modul halaman -> window.Pages[modul].render */
+  var MODULES = {
+    dashboard: "dashboard",
+    tahun: "years",
+    tingkat: "level",
+    lulus: "graduation",
+    absensi: "attendance",
+    rekap: "recap",
+    laporan: "reports",
+    siswa: "students",
+    akun: "accounts",
+    pengaturan: "settings"
+  };
+
+  function pageModule(key) {
+    var mod = MODULES[key];
+    return mod && window.Pages && window.Pages[mod] ? window.Pages[mod] : null;
+  }
+
+  function pageRender(key) {
+    return function (c) {
+      var mod = pageModule(key);
+      if (!mod) {
+        App.pageMissing(c, key);
+        return;
+      }
+      mod.render(c);
+    };
+  }
+
   var PAGES = {
-    dashboard: { title: "Dasbor", render: function (c) { window.Pages.dashboard.render(c); } },
-    tahun: { title: "Tahun Ajaran & Semester", render: function (c) { window.Pages.years.render(c); } },
-    tingkat: { title: "Kelas VII · VIII · IX", render: function (c) { window.Pages.level.render(c); } },
-    lulus: { title: "Kelulusan & Lanjutan", render: function (c) { window.Pages.graduation.render(c); } },
-    absensi: { title: "Absensi Kehadiran", render: function (c) { window.Pages.attendance.render(c); } },
-    rekap: { title: "Rekap Absensi", render: function (c) { window.Pages.recap.render(c); } },
-    laporan: { title: "Laporan Kerja", render: function (c) { window.Pages.reports.render(c); } },
-    siswa: { title: "Data Siswa", render: function (c) { window.Pages.students.render(c); } },
-    akun: { title: "Akun Admin", render: function (c) { window.Pages.accounts.render(c); } },
-    pengaturan: { title: "Pengaturan", render: function (c) { window.Pages.settings.render(c); } }
+    dashboard: { title: "Dasbor", render: pageRender("dashboard") },
+    tahun: { title: "Tahun Ajaran & Semester", render: pageRender("tahun") },
+    tingkat: { title: "Kelas VII · VIII · IX", render: pageRender("tingkat") },
+    lulus: { title: "Kelulusan & Lanjutan", render: pageRender("lulus") },
+    absensi: { title: "Absensi Kehadiran", render: pageRender("absensi") },
+    rekap: { title: "Rekap Absensi", render: pageRender("rekap") },
+    laporan: { title: "Laporan Kerja", render: pageRender("laporan") },
+    siswa: { title: "Data Siswa", render: pageRender("siswa") },
+    akun: { title: "Akun Admin", render: pageRender("akun") },
+    pengaturan: { title: "Pengaturan", render: pageRender("pengaturan") }
   };
 
   /* Menu yang hanya tampil untuk peran tertentu. */
@@ -287,15 +317,24 @@
 
     var main = $("#main-content");
     if (!main) return;
-    if (!window.Pages[key]) {
-      main.innerHTML = '<div class="card setup-card">' + U.emptyState("alert", "Halaman belum termuat", "Muat ulang halaman dengan Ctrl + F5.") + "</div>";
+    if (!window.Pages || !pageModule(key)) {
+      U.$$(".nav-link").forEach(function (a) {
+        a.classList.toggle("active", a.dataset.route === key);
+      });
+      App.pageMissing(main, key);
       return;
     }
     main.innerHTML = "";
     try {
       page.render(main);
     } catch (err) {
-      main.innerHTML = '<div class="card"><div class="notice notice-danger">' + U.icon("alert", 18) + "<span>" + U.escape(err.message || String(err)) + "</span></div></div>";
+      var msg = err && (err.message || String(err));
+      if (/is not a function|is not defined|undefined is not|Cannot read properties of undefined \(reading 'render'\)/i.test(msg || "")) {
+        U.toast("Skrip halaman " + key + " belum termuat (Ctrl + Shift + R).", "error", 6000);
+        App.pageMissing(main, key);
+      } else {
+        main.innerHTML = '<div class="card"><div class="notice notice-danger">' + U.icon("alert", 18) + "<span>" + U.escape(msg) + "</span></div></div>";
+      }
     }
     closeSidebar();
     window.scrollTo(0, 0);
@@ -341,6 +380,29 @@
   };
   App.canSee = canSee;
   App.canEdit = function () { return Boolean(API.isAdmin()); };
+  /* Dipakai oleh halaman dengan skrip yang gagal dimuat:
+     tampilkan pesan jelas, jangan biarkan menu kosong. */
+  App.pageMissing = function (container, route, err) {
+    var file = {
+      dashboard: "dashboard.js", tahun: "years.js", tingkat: "levels.js",
+      lulus: "graduation.js", absensi: "attendance.js", rekap: "attendance-recap.js",
+      laporan: "reports.js", siswa: "students.js", akun: "accounts.js",
+      pengaturan: "settings.js"
+    }[route] || route;
+    container.innerHTML =
+      '<div class="card setup-card">' +
+        '<div class="setup-icon">' + U.icon("alert", 30) + "</div>" +
+        "<h2>Halaman belum termuat</h2>" +
+        '<p class="muted">File <code>assets/js/' + U.escape(file) + "</code> gagal dimuat" +
+        (err ? ": " + U.escape(err) : "") + ". Halaman lain tetap dapat dipakai.</p>" +
+        '<div class="setup-steps">' +
+          "<div><span>1</span><p>Muat ulang aplikasi dengan <strong>Ctrl + Shift + R</strong> (hapus cache).</p></div>" +
+          "<div><span>2</span><p>Pastikan nama file di folder <code>assets/js</code> persis sama (huruf besar/kecil).</p></div>" +
+          "<div><span>3</span><p>Buka <strong>F12 → Console</strong> untuk melihat error pemuatan file.</p></div>" +
+        "</div>" +
+        '<button type="button" class="btn btn-primary" onclick="location.reload(true)">' + U.icon("refresh", 17) + "<span>Muat Ulang</span></button>" +
+      "</div>";
+  };
   App.refreshStudents = async function () {
     state.students = U.sortStudents((await API.getStudents(false)) || []);
     return state.students;

@@ -103,6 +103,12 @@ JIKA ADA MASALAH
 - "Tabel database belum dibuat" / PGRST205
   -> Skema belum dijalankan. Jalankan supabase\schema.sql.
 
+- Semua menu menampilkan "Halaman belum termuat"
+  -> Muat ulang dengan Ctrl + Shift + R (hapus cache).
+  -> Bila tetap: jalankan supabase\setup-nama-tabel-salah.sql
+     (membetulkan nama tabel yang tertulis "Students", "Profiles", dst).
+  -> Buka F12 > Console untuk melihat file/error yang gagal dimuat.
+
 - "Email atau password salah"
   -> Buat/atur ulang akun di Authentication > Users.
   -> Pastikan Auto Confirm User aktif.

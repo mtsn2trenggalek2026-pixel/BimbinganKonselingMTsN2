@@ -532,6 +532,7 @@ login di MCP berbeda dengan pemilik proyek. Jalankan `/mcps` → **supabase** �
 | Migrasi Supabase tidak jalan | Pastikan integrasi GitHub aktif, file berada di `supabase/migrations/`, dan namanya berawalan timestamp. |
 | Vercel menampilkan 404 | Set **Root Directory** `.` dan kosongkan **Output Directory**. |
 | Halaman Vercel/GitHub Pages kosong | Tambahkan alamat situs ke **Supabase → Authentication → URL Configuration**. |
+| Semua menu tampil "Halaman belum termuat" | Biasanya nama tabel di database berbeda huruf besar/kecil (mis. `Students`), atau file `assets/js/*.js` di hosting masih lama. Jalankan `supabase/setup-nama-tabel-salah.sql`, lalu muat ulang dengan **Ctrl + Shift + R**. |
 | Menu Tahun & Semester / Kelas tidak muncul | Akun Anda berperan `guru_bk`. Minta superadmin mengubah peran menjadi `admin`. |
 | "Tabel tahun ajaran belum tersedia" | Migrasi `20261105090000_akademik_roles.sql` belum dijalankan. |
 | Gagal membuat akun admin: `function ... does not exist` | Jalankan migrasi akademik (bagian 2b). |

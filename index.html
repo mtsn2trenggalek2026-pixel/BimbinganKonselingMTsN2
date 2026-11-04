@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistem Informasi Bimbingan dan Konseling MTsN 2 Trenggalek — absensi kehadiran dan laporan kerja.">
+  <title>BK MTsN 2 Trenggalek</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f766e'/%3E%3Ctext x='32' y='42' font-family='Arial' font-size='24' font-weight='bold' fill='white' text-anchor='middle'%3EBK%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <!-- Boot -->
+  <div id="boot-screen" class="boot-screen">
+    <div class="boot-mark">BK</div>
+    <div class="boot-spinner"></div>
+    <p>Menyiapkan aplikasi…</p>
+  </div>
+
+  <div id="global-loading" class="global-loading hidden">
+    <div class="loading-card"><span class="spinner"></span><span class="loading-text">Memuat…</span></div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <section id="auth-screen" class="auth-screen hidden">
+    <div class="auth-brand">
+      <div class="brand-top">
+        <div class="brand-logo">BK</div>
+        <div>
+          <strong>MTsN 2 Trenggalek</strong>
+          <span>Bimbingan &amp; Konseling</span>
+        </div>
+      </div>
+
+      <div class="auth-hero">
+        <span class="eyebrow">Sistem Informasi BK</span>
+        <h1>Kelola absensi &amp; laporan kerja dengan lebih mudah.</h1>
+        <p>Satu tempat untuk mencatat kehadiran siswa, merekap absensi, dan membuat laporan kerja siap cetak.</p>
+        <ul class="auth-features">
+          <li><span class="feature-check">✓</span> Absensi harian dengan keterangan Alpa, Sakit, dan Izin</li>
+          <li><span class="feature-check">✓</span> Rekap otomatis per kelas dan periode</li>
+          <li><span class="feature-check">✓</span> Laporan kerja siap unduh Word dan PDF</li>
+        </ul>
+      </div>
+
+      <div class="auth-foot">© 2026 BK MTsN 2 Trenggalek</div>
+    </div>
+
+    <div class="auth-panel">
+      <div class="auth-card">
+        <div class="auth-card-head">
+          <span class="mobile-brand">BK</span>
+          <h2>Masuk ke Aplikasi</h2>
+          <p>Gunakan akun guru BK yang telah terdaftar.</p>
+        </div>
+
+        <form id="login-form" autocomplete="on">
+          <div class="field">
+            <label for="login-email">Email</label>
+            <div class="input-with-icon">
+              <span data-icon="mail" data-size="17"></span>
+              <input type="email" id="login-email" placeholder="nama@email.com" autocomplete="username" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="login-password">Password</label>
+            <div class="input-with-icon">
+              <span data-icon="lock" data-size="17"></span>
+              <input type="password" id="login-password" placeholder="Password akun" autocomplete="current-password" required>
+              <button type="button" class="icon-btn" id="toggle-password" title="Tampilkan password" aria-label="Tampilkan password"></button>
+            </div>
+          </div>
+
+          <div class="form-row-between">
+            <span class="check-label"><span data-icon="lock" data-size="14"></span> Akses khusus guru BK</span>
+            <a href="#" id="forgot-password">Lupa password?</a>
+          </div>
+
+          <div id="login-error" class="auth-error hidden"></div>
+
+          <button type="submit" id="login-submit" class="btn btn-primary btn-lg btn-block">
+            <span>Masuk</span>
+            <span data-icon="arrowRight" data-size="17"></span>
+          </button>
+        </form>
+
+        <p class="auth-help">Belum punya akun? Hubungi admin madrasah untuk dibuatkan akun guru BK.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SETUP / BANTUAN SERVER ============ -->
+  <section id="setup-screen" class="auth-screen hidden">
+    <div class="setup-wrap">
+      <div class="setup-box">
+        <div class="brand-logo">BK</div>
+        <h2>Hubungkan ke Supabase</h2>
+        <p>Aplikasi ini memakai <strong>Supabase</strong> (PostgreSQL) sebagai database dan sistem login. Lengkapi konfigurasi berikut satu kali saja.</p>
+        <div id="setup-error" class="setup-error hidden"></div>
+        <div class="setup-steps">
+          <div><span>1</span><p>Buat proyek di <code>supabase.com</code>, lalu jalankan <code>supabase/schema.sql</code> di <strong>SQL Editor</strong>.</p></div>
+          <div><span>2</span><p>Buka <strong>Project Settings &gt; API</strong>, copy <strong>Project URL</strong> dan <strong>anon/publishable key</strong>.</p></div>
+          <div><span>3</span><p>Tempel kedua nilai tersebut di <code>assets/js/config.js</code>.</p></div>
+          <div><span>4</span><p>Buat akun guru BK di <strong>Authentication &gt; Users</strong>, lalu muat ulang halaman ini.</p></div>
+        </div>
+        <button type="button" id="setup-retry" class="btn btn-primary btn-block btn-lg">Muat Ulang Halaman</button>
+        <p class="form-hint" style="margin-top:14px">Panduan lengkap: <code>README.md</code> bagian <strong>Supabase</strong>. Jangan membuka <code>index.html</code> langsung lewat double-click.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">BK</div>
+        <div>
+          <strong>MTsN 2 Trenggalek</strong>
+          <span>Bimbingan &amp; Konseling</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <span class="nav-section">Menu Utama</span>
+        <a href="#/dashboard" class="nav-link" data-route="dashboard"><span class="nav-icon" data-icon="dashboard"></span><span>Dasbor</span></a>
+        <a href="#/absensi" class="nav-link" data-route="absensi"><span class="nav-icon" data-icon="calendarCheck"></span><span>Absensi</span></a>
+        <a href="#/rekap" class="nav-link" data-route="rekap"><span class="nav-icon" data-icon="chart"></span><span>Rekap Absensi</span></a>
+
+        <span class="nav-section">Administrasi</span>
+        <a href="#/laporan" class="nav-link" data-route="laporan"><span class="nav-icon" data-icon="file"></span><span>Laporan Kerja</span></a>
+        <a href="#/siswa" class="nav-link" data-route="siswa"><span class="nav-icon" data-icon="users"></span><span>Data Siswa</span></a>
+
+        <span class="nav-section">Sistem</span>
+        <a href="#/pengaturan" class="nav-link" data-route="pengaturan"><span class="nav-icon" data-icon="settings"></span><span>Pengaturan</span></a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <span class="avatar" id="sidebar-avatar">BK</span>
+          <div>
+            <strong id="sidebar-name">Guru BK</strong>
+            <small id="sidebar-email">memuat…</small>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="icon-btn menu-toggle" id="menu-toggle" aria-label="Buka menu"><span data-icon="menu" data-size="21"></span></button>
+          <div>
+            <h1 id="page-title">MTsN 2 Trenggalek</h1>
+            <span id="topbar-date" class="topbar-date"></span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div id="user-menu-wrap" class="user-menu-wrap">
+            <button type="button" class="user-chip" id="user-menu-btn">
+              <span class="avatar avatar-sm" id="topbar-avatar">BK</span>
+              <span class="user-chip-text">
+                <strong id="topbar-name">Guru BK</strong>
+                <small id="topbar-email">memuat…</small>
+              </span>
+              <span data-icon="chevronDown" data-size="16"></span>
+            </button>
+            <div id="user-dropdown" class="user-dropdown">
+              <div class="dropdown-head">
+                <strong id="user-menu-name">Guru BK</strong>
+                <span id="user-menu-email">memuat…</span>
+              </div>
+              <button type="button" id="menu-settings"><span data-icon="settings" data-size="16"></span><span>Pengaturan</span></button>
+              <button type="button" id="menu-logout" class="danger"><span data-icon="logout" data-size="16"></span><span>Keluar</span></button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main id="main-content" class="main-content"></main>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <noscript>
+    <div style="padding:30px;text-align:center;font-family:sans-serif">Aplikasi ini memerlukan JavaScript. Aktifkan JavaScript pada browser Anda.</div>
+  </noscript>
+
+  <!-- Vendor -->
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/jspdf.autotable.min.js"></script>
+  <script src="vendor/docx.umd.js"></script>
+  <script src="vendor/FileSaver.min.js"></script>
+  <script src="vendor/supabase.js"></script>
+
+  <!-- Aplikasi -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/exporters.js"></script>
+  <script src="assets/js/dashboard.js"></script>
+  <script src="assets/js/attendance.js"></script>
+  <script src="assets/js/recap.js"></script>
+  <script src="assets/js/reports.js"></script>
+  <script src="assets/js/students.js"></script>
+  <script src="assets/js/settings.js"></script>
+  <script src="assets/js/app.js"></script>
+
+  <script>
+    // Isi ikon statis pada shell & halaman login
+    document.querySelectorAll("[data-icon]").forEach(function (el) {
+      var size = Number(el.getAttribute("data-size") || 20);
+      el.innerHTML = window.U.icon(el.getAttribute("data-icon"), size);
+    });
+    document.getElementById("toggle-password").innerHTML = window.U.icon("eye", 18);
+  </script>
+</body>
+</html>

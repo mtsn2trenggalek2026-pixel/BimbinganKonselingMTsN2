@@ -1,0 +1,15 @@
+# ============================================================
+#  Data pribadi siswa — JANGAN diunggah ke repositori publik
+# ============================================================
+supabase/schema-lengkap.local.sql
+assets/data/students.json
+
+# Versi lama PHP + MySQL (tidak dipakai lagi)
+legacy-mysql/
+
+# Berkas sistem / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+*.tmp

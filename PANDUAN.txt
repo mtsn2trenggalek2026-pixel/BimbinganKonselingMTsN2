@@ -1,0 +1,108 @@
+﻿============================================================
+ PANDUAN SINGKAT
+ Website BK MTsN 2 Trenggalek
+ Database: PostgreSQL / Supabase
+============================================================
+
+LANGKAH 1 — JALANKAN SKEMA DATABASE (sekali saja)
+--------------------------------------------------
+1. Buka: https://supabase.com/dashboard/project/mhjvebnxsutwbudjwmud
+2. Masuk ke menu "SQL Editor" > "New query".
+3. Buka file "supabase\schema.sql", copy SELURUH isinya.
+4. Tempel di SQL Editor, lalu klik "Run".
+5. Pastikan hasil akhir menampilkan total_siswa = 284.
+
+
+LANGKAH 2 — PERIKSA KONFIGURASI
+-------------------------------
+File: assets\js\config.js
+
+  SUPABASE_URL      : https://mhjvebnxsutwbudjwmud.supabase.co
+  SUPABASE_ANON_KEY : sb_publishable_0QoQPOUArrXnj0mArDr2uQ_pPxFsasw
+
+Nilai di atas sudah terisi. Ganti hanya bila memakai proyek
+Supabase lain. JANGAN memakai service_role/secret key.
+
+
+LANGKAH 3 — BUAT AKUN GURU BK
+-----------------------------
+1. Supabase Dashboard > Authentication > Users > Add user.
+2. Isi email dan password (minimal 8 karakter).
+3. Aktifkan "Auto Confirm User".
+4. Klik "Create user".
+   Profil guru BK dibuat otomatis.
+
+
+LANGKAH 4 — BUKA APLIKASI
+-------------------------
+Cara A (paling mudah):
+1. Klik dua kali "start.bat".
+2. Browser terbuka di http://localhost:8080/
+
+Cara B (lewat Apache XAMPP):
+1. Salin folder "website" ke C:\xampp\htdocs\bk-mtsn2
+2. Nyalakan Apache saja (MySQL tidak diperlukan).
+3. Buka http://localhost/bk-mtsn2/
+
+PENTING: jangan membuka index.html dengan double-click.
+Aplikasi harus dibuka lewat http://localhost/... atau hosting.
+
+
+LANGKAH 5 — LOGIN
+-----------------
+Gunakan email dan password yang dibuat pada Langkah 3.
+Ganti password melalui:
+menu Pengaturan > Akun > "Ganti Password".
+
+
+FITUR
+-----
+- Absensi harian: Masuk / Tidak Masuk (Alpa, Sakit, Izin).
+- Rekap absensi per kelas dan periode.
+- Laporan kerja bulanan, unduh Word (.docx) dan PDF.
+- Data siswa: tambah, edit, import Excel, ekspor Excel.
+- Pengaturan identitas madrasah dan penandatangan laporan.
+
+
+JIKA ADA MASALAH
+----------------
+- Muncul layar "Hubungkan ke Supabase"
+  -> Jalankan supabase\schema.sql di SQL Editor.
+  -> Periksa SUPABASE_URL dan SUPABASE_ANON_KEY di config.js.
+
+- "Tabel database belum dibuat" / PGRST205
+  -> Skema belum dijalankan. Jalankan supabase\schema.sql.
+
+- "Email atau password salah"
+  -> Buat/atur ulang akun di Authentication > Users.
+  -> Pastikan Auto Confirm User aktif.
+
+- "Akun ini belum memiliki profil guru BK"
+  -> Profil belum dibuat. Jalankan ulang bagian trigger/backfill
+     pada schema.sql.
+
+- "Akses ditolak"
+  -> Pastikan kolom aktif pada tabel profiles bernilai true.
+
+- Lupa password
+  -> Authentication > Users > pilih akun > menu > Reset password.
+
+- Ekspor Word/PDF tidak jalan
+  -> Pastikan folder vendor\ lengkap dan unduhan diizinkan browser.
+
+- Tampilan berantakan
+  -> Gunakan Chrome/Edge terbaru, muat ulang dengan Ctrl + F5.
+
+
+FILE PENTING
+------------
+- supabase\schema.sql    : tabel + RLS + pengaturan (tanpa data siswa).
+- supabase\schema-lengkap.local.sql : versi + 284 siswa (lokal, tidak di-push).
+- assets\js\config.js    : URL dan anon key Supabase.
+- assets\js\api.js       : akses data Supabase.
+- README.md              : dokumentasi lengkap (termasuk MCP).
+- legacy-mysql\          : versi lama PHP + MySQL (tidak dipakai).
+
+============================================================
+ © 2026 BK MTsN 2 Trenggalek
+============================================================

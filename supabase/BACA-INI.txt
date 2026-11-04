@@ -1,0 +1,50 @@
+============================================================
+ CARA MENERAPKAN DATABASE KE SUPABASE
+ Proyek: mhjvebnxsutwbudjwmud
+============================================================
+
+1. Buka:
+   https://supabase.com/dashboard/project/mhjvebnxsutwbudjwmud
+
+2. Klik menu "SQL Editor" (ikon terminal di sidebar kiri),
+   lalu klik "New query".
+
+3. Buka file "schema.sql" di folder ini.
+   Copy SELURUH isinya (Ctrl+A, Ctrl+C).
+
+4. Tempel di SQL Editor (Ctrl+V), lalu klik tombol "Run".
+
+5. Tunggu sampai selesai. Bila memakai file schema.sql dari repo
+   (tanpa data siswa), tabel students akan kosong. Data siswa
+   diisi lewat menu "Data Siswa > Import" setelah login.
+   Bila memakai schema-lengkap.local.sql (lokal), hasilnya:
+
+      total_siswa
+      -----------
+              284
+
+6. Buka menu "Table Editor". Pastikan tabel berikut sudah ada:
+   - profiles
+   - students          (284 baris)
+   - attendance        (0 baris)
+   - work_reports      (0 baris)
+   - work_report_items (0 baris)
+   - app_settings      (1 baris)
+
+7. Buka "Authentication" > "Users" > "Add user" >
+   "Create new user":
+   - Email    : (email guru BK)
+   - Password : (minimal 8 karakter)
+   - Auto Confirm User : AKTIF
+   - Create user
+
+8. Buka aplikasi lewat start.bat, lalu login.
+
+CATATAN
+-------
+- File schema.sql aman dijalankan ulang.
+- Jangan menjalankan bagian lain di luar file ini.
+- Jangan pernah menaruh service_role/secret key di aplikasi.
+- Bila tabel sudah ada tetapi siswa kosong, jalankan ulang
+  schema.sql; data siswa akan diisi berdasarkan nama + kelas.
+============================================================
